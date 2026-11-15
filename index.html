@@ -89,11 +89,6 @@
   /* serve */
   .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
   .chip{background:#fff;border:1px solid var(--line);border-radius:999px;padding:9px 18px;font-weight:600;color:var(--green)}
-  .work{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:40px}
-  @media (max-width:720px){ .work{grid-template-columns:1fr} }
-  .work .item{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;justify-content:space-between;gap:14px;align-items:baseline}
-  .work .item b{font-weight:600}
-  .work .item span{color:var(--muted);font-size:.92rem;text-align:right}
 
   /* values */
   .values{background:var(--green);color:#fff}
@@ -121,6 +116,27 @@
   .form .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
   .status{margin:0;min-height:1.4em;font-weight:500}
   .status.ok{color:var(--green)} .status.err{color:#a3361f}
+  .subhead{font-size:1.6rem;margin-top:52px}
+  .fine{color:var(--muted);font-size:.9rem;margin:6px 0 0}
+  .projects{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:24px}
+  @media (max-width:900px){ .projects{grid-template-columns:repeat(2,1fr)} }
+  @media (max-width:600px){ .projects{grid-template-columns:1fr} }
+  .proj{all:unset;box-sizing:border-box;cursor:pointer;background:#fff;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;transition:transform .15s,box-shadow .15s}
+  .proj:hover,.proj:focus-visible{transform:translateY(-3px);box-shadow:0 10px 24px rgba(22,56,35,.12)}
+  .proj:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+  .proj .thumb{display:block;height:220px;overflow:hidden;background:#e9e6dc;border-bottom:1px solid var(--line)}
+  .proj .thumb img{width:100%;height:auto;display:block}
+  .proj .meta{display:flex;flex-direction:column;gap:4px;padding:16px 18px 18px}
+  .proj .kind{font-weight:600;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--tan)}
+  .proj b{font-family:"Barlow Condensed";font-size:1.35rem;text-transform:uppercase;color:var(--green);line-height:1.1}
+  .proj .desc{color:var(--muted);font-size:.93rem}
+  .proj .more{margin-top:6px;font-weight:600;font-size:.88rem;color:var(--green)}
+  dialog#viewer{border:0;border-radius:16px;padding:0;width:min(960px,94vw);max-height:90vh;background:var(--paper)}
+  dialog#viewer::backdrop{background:rgba(10,20,14,.7)}
+  .vhead{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:var(--green);color:#fff;font-family:"Barlow Condensed";font-size:1.3rem;text-transform:uppercase;z-index:1}
+  .vclose{all:unset;cursor:pointer;font-size:1.8rem;line-height:1;padding:0 6px}
+  .vbody{padding:20px;display:grid;gap:18px}
+  .vbody img{width:100%;max-width:820px;margin:0 auto;border-radius:10px;border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.08)}
   footer{border-top:1px solid var(--line);padding:30px 0;color:var(--muted);font-size:.9rem}
   footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
   footer img{height:30px;width:auto}
@@ -231,15 +247,43 @@
         <span class="chip">Race teams</span><span class="chip">Coaches</span><span class="chip">Startups</span>
         <span class="chip">Small businesses</span>
       </div>
-      <div class="work">
-        <div class="item"><b>Church staff retreat</b><span>Event site + private admin</span></div>
-        <div class="item"><b>Elementary school dads' club</b><span>Club site + Trunk or Treat app</span></div>
-        <div class="item"><b>Relay race team</b><span>Race-day leg tracker + logistics</span></div>
-        <div class="item"><b>Neighborhood HOA</b><span>Website overhaul under $150/yr</span></div>
-        <div class="item"><b>Commercial glazing contractor</b><span>Field project-management app</span></div>
-        <div class="item"><b>Real estate team</b><span>Hiring page + transaction tracker</span></div>
-        <div class="item"><b>Endurance coach</b><span>Weekly athlete email system</span></div>
+      <h3 class="subhead">Recent work</h3>
+      <p class="fine">Client names and personal details are blurred to protect privacy.</p>
+      <div class="projects">
+        <button class="proj" type="button" data-imgs="trunk-or-treat-list,trunk-or-treat-winners" data-title="School Trunk or Treat">
+          <span class="thumb"><img src="assets/work/trunk-or-treat-list.jpg" alt="School Trunk or Treat screenshot" loading="lazy"></span>
+          <span class="meta"><span class="kind">Event site</span><b>School Trunk or Treat</b><span class="desc">Trunk list with search, live voting by category, and an automatic winners board.</span><span class="more">View 2 screens &rarr;</span></span>
+        </button>
+        <button class="proj" type="button" data-imgs="retreat-home,retreat-cup" data-title="Church staff retreat">
+          <span class="thumb"><img src="assets/work/retreat-home.jpg" alt="Church staff retreat screenshot" loading="lazy"></span>
+          <span class="meta"><span class="kind">Event site</span><b>Church staff retreat</b><span class="desc">Agenda, packing list and a team scoreboard the staff updates from a private admin page.</span><span class="more">View 2 screens &rarr;</span></span>
+        </button>
+        <button class="proj" type="button" data-imgs="race-tracker,race-logistics" data-title="Relay race team">
+          <span class="thumb"><img src="assets/work/race-tracker.jpg" alt="Relay race team screenshot" loading="lazy"></span>
+          <span class="meta"><span class="kind">Event site + operations</span><b>Relay race team</b><span class="desc">Shared trip logistics before the race, then a live leg-by-leg tracker on race day.</span><span class="more">View 2 screens &rarr;</span></span>
+        </button>
+        <button class="proj" type="button" data-imgs="hoa-home,hoa-map" data-title="Neighborhood HOA">
+          <span class="thumb"><img src="assets/work/hoa-home.jpg" alt="Neighborhood HOA screenshot" loading="lazy"></span>
+          <span class="meta"><span class="kind">Group site</span><b>Neighborhood HOA</b><span class="desc">Residents-only site with news, documents, a directory and a neighborhood map, for a fraction of the old cost.</span><span class="more">View 2 screens &rarr;</span></span>
+        </button>
+        <button class="proj" type="button" data-imgs="transactions-today,transactions-board,transactions-anniversaries" data-title="Real estate team">
+          <span class="thumb"><img src="assets/work/transactions-today.jpg" alt="Real estate team screenshot" loading="lazy"></span>
+          <span class="meta"><span class="kind">Operations tool</span><b>Real estate team</b><span class="desc">Transaction tracker with deadlines, a stage board and client anniversaries.</span><span class="more">View 3 screens &rarr;</span></span>
+        </button>
+        <button class="proj" type="button" data-imgs="field-jobs-list,field-jobs-detail" data-title="Glazing contractor">
+          <span class="thumb"><img src="assets/work/field-jobs-list.jpg" alt="Glazing contractor screenshot" loading="lazy"></span>
+          <span class="meta"><span class="kind">Operations tool</span><b>Glazing contractor</b><span class="desc">Field jobs app: crews see their jobs, stages, checklists and photos from the truck.</span><span class="more">View 2 screens &rarr;</span></span>
+        </button>
+        <button class="proj" type="button" data-imgs="gate-check" data-title="Airport rankings">
+          <span class="thumb"><img src="assets/work/gate-check.jpg" alt="Airport rankings screenshot" loading="lazy"></span>
+          <span class="meta"><span class="kind">Personal project</span><b>Airport rankings</b><span class="desc">Map-based rankings fed by a simple form and spreadsheet.</span><span class="more">View 1 screen &rarr;</span></span>
+        </button>
       </div>
+      <dialog id="viewer" aria-label="Project screenshots">
+        <div class="vhead"><b id="vtitle"></b><button type="button" class="vclose" aria-label="Close">&times;</button></div>
+        <div class="vbody" id="vbody"></div>
+      </dialog>
+    </div>
     </div>
   </section>
 
@@ -295,6 +339,18 @@
 </footer>
 <script>
 document.getElementById('yr').textContent=new Date().getFullYear();
+(function(){
+  var d=document.getElementById('viewer'), body=document.getElementById('vbody'), title=document.getElementById('vtitle');
+  document.querySelectorAll('.proj').forEach(function(b){
+    b.addEventListener('click',function(){
+      title.textContent=b.dataset.title; body.innerHTML='';
+      b.dataset.imgs.split(',').forEach(function(n){ var i=new Image(); i.src='assets/work/'+n+'.jpg'; i.alt=b.dataset.title+' screenshot'; i.loading='lazy'; body.appendChild(i); });
+      d.showModal(); d.scrollTop=0;
+    });
+  });
+  d.querySelector('.vclose').addEventListener('click',function(){ d.close(); });
+  d.addEventListener('click',function(e){ if(e.target===d) d.close(); });
+})();
 (function(){
   var f=document.getElementById('consult'), s=f.querySelector('.status'), b=f.querySelector('button');
   f.addEventListener('submit',function(e){
