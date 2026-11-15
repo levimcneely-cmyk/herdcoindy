@@ -109,6 +109,18 @@
   /* contact */
   .contact{text-align:center}
   .contact .lead{margin:14px auto 30px}
+  .form{max-width:640px;margin:0 auto;text-align:left;display:grid;gap:16px}
+  .form .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:600px){ .form .row{grid-template-columns:1fr} }
+  .form label{display:grid;gap:6px;font-weight:600;font-size:.92rem;color:var(--green)}
+  .form input,.form select,.form textarea{font:inherit;font-weight:400;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;width:100%}
+  .form input:focus,.form select:focus,.form textarea:focus{outline:2px solid var(--green);outline-offset:1px;border-color:var(--green)}
+  .form textarea{resize:vertical}
+  .form button{justify-self:start;border:0;cursor:pointer;font:inherit;font-weight:600}
+  .form button:disabled{opacity:.6;cursor:wait}
+  .form .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+  .status{margin:0;min-height:1.4em;font-weight:500}
+  .status.ok{color:var(--green)} .status.err{color:#a3361f}
   footer{border-top:1px solid var(--line);padding:30px 0;color:var(--muted);font-size:.9rem}
   footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
   footer img{height:30px;width:auto}
@@ -250,7 +262,27 @@
       <p class="eyebrow">Get in touch</p>
       <h2>Let's build for your herd</h2>
       <p class="lead">Tell us about your group and what you're trying to run. We'll set up a 30-minute consult.</p>
-      <a class="btn" href="mailto:hello@herdcoindy.com?subject=Herd%20Co.%20consult">hello@herdcoindy.com</a>
+      <form id="consult" class="form" novalidate>
+        <div class="row">
+          <label>Your name<input name="name" required autocomplete="name"></label>
+          <label>Email<input name="email" type="email" required autocomplete="email"></label>
+        </div>
+        <div class="row">
+          <label>Group or business<input name="group" placeholder="e.g. church, club, HOA, startup"></label>
+          <label>What do you need?
+            <select name="need">
+              <option>Not sure yet</option>
+              <option>Event site</option>
+              <option>Group site</option>
+              <option>Operations tool</option>
+            </select>
+          </label>
+        </div>
+        <label>Tell us about it<textarea name="message" rows="5" required placeholder="What's your group trying to run, and what's painful today?"></textarea></label>
+        <input type="text" name="_honey" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <button class="btn" type="submit">Request a consult</button>
+        <p class="status" role="status" aria-live="polite"></p>
+      </form>
     </div>
   </section>
 </main>
@@ -261,6 +293,25 @@
     <span>&copy; <span id="yr">2026</span> The Herd Co. · Greenwood / Indianapolis, Indiana</span>
   </div>
 </footer>
-<script>document.getElementById('yr').textContent=new Date().getFullYear();</script>
+<script>
+document.getElementById('yr').textContent=new Date().getFullYear();
+(function(){
+  var f=document.getElementById('consult'), s=f.querySelector('.status'), b=f.querySelector('button');
+  f.addEventListener('submit',function(e){
+    e.preventDefault();
+    if(!f.checkValidity()){ s.className='status err'; s.textContent='Please fill in your name, a valid email, and a short note.'; f.reportValidity(); return; }
+    var d=Object.fromEntries(new FormData(f));
+    if(d._honey) return;
+    d._subject='Herd Co. consult request from '+d.name;
+    d._replyto=d.email; d._template='table';
+    b.disabled=true; b.textContent='Sending…'; s.className='status'; s.textContent='';
+    fetch('https://formsubmit.co/ajax/levi.mcneely@gmail.com',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)})
+      .then(function(r){return r.json().then(function(j){ if(!r.ok||String(j.success)!=='true') throw new Error(j.message||'failed'); });})
+      .then(function(){ f.reset(); s.className='status ok'; s.textContent="Thanks! We got your note and will reach out within a day or two to set up your consult."; })
+      .catch(function(){ s.className='status err'; s.textContent="Something went wrong sending that. Please try again in a minute."; })
+      .finally(function(){ b.disabled=false; b.textContent='Request a consult'; });
+  });
+})();
+</script>
 </body>
 </html>
