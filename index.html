@@ -305,7 +305,7 @@ document.getElementById('yr').textContent=new Date().getFullYear();
     d._subject='Herd Co. consult request from '+d.name;
     d._replyto=d.email; d._template='table';
     b.disabled=true; b.textContent='Sending…'; s.className='status'; s.textContent='';
-    fetch('https://formsubmit.co/ajax/levi.mcneely@gmail.com',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)})
+    fetch('https://formsubmit.co/ajax/levi@herdcoindy.com',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)})
       .then(function(r){return r.json().then(function(j){ if(!r.ok||String(j.success)!=='true') throw new Error(j.message||'failed'); });})
       .then(function(){ f.reset(); s.className='status ok'; s.textContent="Thanks! We got your note and will reach out within a day or two to set up your consult."; })
       .catch(function(){ s.className='status err'; s.textContent="Something went wrong sending that. Please try again in a minute."; })
