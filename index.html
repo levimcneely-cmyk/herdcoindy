@@ -150,7 +150,7 @@
     <nav>
       <a class="hide-sm" href="#what">What we do</a>
       <a class="hide-sm" href="#how">How it works</a>
-      <a class="hide-sm" href="#work">Work</a>
+      <a class="hide-sm" href="portfolio.html">Portfolio</a>
       <a class="btn" href="#contact">Get in touch</a>
     </nav>
   </div>
@@ -247,43 +247,10 @@
         <span class="chip">Race teams</span><span class="chip">Coaches</span><span class="chip">Startups</span>
         <span class="chip">Small businesses</span>
       </div>
-      <h3 class="subhead">Recent work</h3>
-      <p class="fine">Client names and personal details are blurred to protect privacy.</p>
-      <div class="projects">
-        <button class="proj" type="button" data-imgs="trunk-or-treat-list,trunk-or-treat-winners" data-title="School Trunk or Treat">
-          <span class="thumb"><img src="assets/work/trunk-or-treat-list.jpg" alt="School Trunk or Treat screenshot" loading="lazy"></span>
-          <span class="meta"><span class="kind">Event site</span><b>School Trunk or Treat</b><span class="desc">Trunk list with search, live voting by category, and an automatic winners board.</span><span class="more">View 2 screens &rarr;</span></span>
-        </button>
-        <button class="proj" type="button" data-imgs="retreat-home,retreat-cup" data-title="Church staff retreat">
-          <span class="thumb"><img src="assets/work/retreat-home.jpg" alt="Church staff retreat screenshot" loading="lazy"></span>
-          <span class="meta"><span class="kind">Event site</span><b>Church staff retreat</b><span class="desc">Agenda, packing list and a team scoreboard the staff updates from a private admin page.</span><span class="more">View 2 screens &rarr;</span></span>
-        </button>
-        <button class="proj" type="button" data-imgs="race-tracker,race-logistics" data-title="Relay race team">
-          <span class="thumb"><img src="assets/work/race-tracker.jpg" alt="Relay race team screenshot" loading="lazy"></span>
-          <span class="meta"><span class="kind">Event site + operations</span><b>Relay race team</b><span class="desc">Shared trip logistics before the race, then a live leg-by-leg tracker on race day.</span><span class="more">View 2 screens &rarr;</span></span>
-        </button>
-        <button class="proj" type="button" data-imgs="hoa-home,hoa-map" data-title="Neighborhood HOA">
-          <span class="thumb"><img src="assets/work/hoa-home.jpg" alt="Neighborhood HOA screenshot" loading="lazy"></span>
-          <span class="meta"><span class="kind">Group site</span><b>Neighborhood HOA</b><span class="desc">Residents-only site with news, documents, a directory and a neighborhood map, for a fraction of the old cost.</span><span class="more">View 2 screens &rarr;</span></span>
-        </button>
-        <button class="proj" type="button" data-imgs="transactions-today,transactions-board,transactions-anniversaries" data-title="Real estate team">
-          <span class="thumb"><img src="assets/work/transactions-today.jpg" alt="Real estate team screenshot" loading="lazy"></span>
-          <span class="meta"><span class="kind">Operations tool</span><b>Real estate team</b><span class="desc">Transaction tracker with deadlines, a stage board and client anniversaries.</span><span class="more">View 3 screens &rarr;</span></span>
-        </button>
-        <button class="proj" type="button" data-imgs="field-jobs-list,field-jobs-detail" data-title="Glazing contractor">
-          <span class="thumb"><img src="assets/work/field-jobs-list.jpg" alt="Glazing contractor screenshot" loading="lazy"></span>
-          <span class="meta"><span class="kind">Operations tool</span><b>Glazing contractor</b><span class="desc">Field jobs app: crews see their jobs, stages, checklists and photos from the truck.</span><span class="more">View 2 screens &rarr;</span></span>
-        </button>
-        <button class="proj" type="button" data-imgs="gate-check" data-title="Airport rankings">
-          <span class="thumb"><img src="assets/work/gate-check.jpg" alt="Airport rankings screenshot" loading="lazy"></span>
-          <span class="meta"><span class="kind">Personal project</span><b>Airport rankings</b><span class="desc">Map-based rankings fed by a simple form and spreadsheet.</span><span class="more">View 1 screen &rarr;</span></span>
-        </button>
+      <div class="note" style="margin-top:36px;background:#fff;border:1px solid var(--line)">
+        <p><b>See what we've built.</b> Event sites, group sites and operations tools for churches, schools, HOAs, race teams and small businesses.</p>
+        <a class="btn" href="portfolio.html">View the portfolio</a>
       </div>
-      <dialog id="viewer" aria-label="Project screenshots">
-        <div class="vhead"><b id="vtitle"></b><button type="button" class="vclose" aria-label="Close">&times;</button></div>
-        <div class="vbody" id="vbody"></div>
-      </dialog>
-    </div>
     </div>
   </section>
 
@@ -339,18 +306,6 @@
 </footer>
 <script>
 document.getElementById('yr').textContent=new Date().getFullYear();
-(function(){
-  var d=document.getElementById('viewer'), body=document.getElementById('vbody'), title=document.getElementById('vtitle');
-  document.querySelectorAll('.proj').forEach(function(b){
-    b.addEventListener('click',function(){
-      title.textContent=b.dataset.title; body.innerHTML='';
-      b.dataset.imgs.split(',').forEach(function(n){ var i=new Image(); i.src='assets/work/'+n+'.jpg'; i.alt=b.dataset.title+' screenshot'; i.loading='lazy'; body.appendChild(i); });
-      d.showModal(); d.scrollTop=0;
-    });
-  });
-  d.querySelector('.vclose').addEventListener('click',function(){ d.close(); });
-  d.addEventListener('click',function(e){ if(e.target===d) d.close(); });
-})();
 (function(){
   var f=document.getElementById('consult'), s=f.querySelector('.status'), b=f.querySelector('button');
   f.addEventListener('submit',function(e){
