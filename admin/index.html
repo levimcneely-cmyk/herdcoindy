@@ -54,7 +54,7 @@
   #login .btn{width:100%;justify-content:center;padding:12px}
 
   /* fields */
-  label.f{display:flex;flex-direction:column;gap:4px;font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  label.f,div.f{display:flex;flex-direction:column;gap:4px;font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
   input[type=text],input[type=email],input[type=tel],input[type=url],input[type=date],input[type=number],input[type=password],input[type=search],select,textarea{
     width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:#fff;font-size:1rem;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink)}
   textarea{resize:vertical;min-height:90px;line-height:1.45}
@@ -306,7 +306,9 @@ var STAGE = {}; STAGES.forEach(function(s){ STAGE[s.k]=s; });
 var SERVICES = ['Event site','Group site','Operations tool','AI agent','Not sure yet','Other'];
 var SOURCES = ['Website form','Referral','Friend / network','Repeat client','Social','Other'];
 var FILE_KINDS = ['Executed contract','Proposal / SOW','Change order','Invoice','Receipt','Handoff doc','Other'];
-var LOG_TYPES = ['note','call','email','meeting','text'];
+var LOG_TYPES = ['note','text','call','email','face-to-face','meeting'];
+var CONTACT_TYPES = [{k:'text',label:'Text',ic:'💬'},{k:'call',label:'Call',ic:'📞'},{k:'email',label:'Email',ic:'✉️'},{k:'face-to-face',label:'Face-to-face',ic:'🤝'}];
+var CONTACT_KEYS = {text:1,call:1,email:1,'face-to-face':1,meeting:1};
 var TYPES = [{k:'client',label:'Client'},{k:'internal',label:'Internal'},{k:'personal',label:'Personal'}];
 var PAY_METHODS = ['Venmo','Check','ACH / Found','Card','Cash','Other'];
 var CLOSE_REASONS = ['Lost — price','Lost — timing','Went with someone else','Not a fit','No response','Retired / sunset','Other'];
@@ -380,7 +382,23 @@ function paymentsFor(id){ return S.payments.filter(function(x){ return String(x.
 function paidFor(p){ var ps=paymentsFor(p.id); return ps.length ? ps.reduce(function(t,x){ return t+num(x.amount); },0) : num(p.paid); }
 function healthFor(id){ return S.health.filter(function(h){ return String(h.projectId)===String(id); }); }
 function healthDot(id){ var h=healthFor(id); if(!h.length) return '<span class="dot" title="Not checked"></span>'; var bad=h.filter(function(x){ return x.ok==='no'; }); return bad.length?'<span class="dot bad" title="'+esc(bad.map(function(b){ return b.kind+': '+b.detail; }).join(' | '))+'"></span>':'<span class="dot ok" title="All checks passing"></span>'; }
-function lastContactOf(p){ return p.lastContact || String(p.created||'').slice(0,10); }
+function localDay(ts){ var d=new Date(ts); if(isNaN(d)) return String(ts||'').slice(0,10); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function lastTouch(p){
+  var best=null;
+  S.log.forEach(function(l){ if(String(l.projectId)!==String(p.id) || !CONTACT_KEYS[l.type]) return; var d=localDay(l.ts); if(!best || d>best.date || (d===best.date && String(l.ts)>best.ts)) best={date:d, ts:String(l.ts), type:l.type, text:l.text}; });
+  if(p.lastContact && (!best || p.lastContact>best.date)) best={date:p.lastContact, ts:'', type:'email', text:''};
+  return best;
+}
+function lastContactOf(p){ var t=lastTouch(p); return t ? t.date : String(p.created||'').slice(0,10); }
+function fmtPhone(v){
+  var raw=String(v||''), d=raw.replace(/\D/g,'');
+  if(/^\s*\+/.test(raw) && d[0]!=='1') return raw; // international: leave as typed
+  var cc='';
+  if(d.length>10 && d[0]==='1'){ cc='+1 '; d=d.slice(1); }
+  var ext=d.slice(10); d=d.slice(0,10);
+  var out = d.length<=3 ? (d.length?'('+d:'') : d.length<=6 ? '('+d.slice(0,3)+') '+d.slice(3) : '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6);
+  return cc+out+(ext?' x'+ext:'');
+}
 function checklistOf(p){ try{ var c=JSON.parse(p.checklist||'[]'); if(Array.isArray(c)&&c.length) return c; }catch(e){} return DEFAULT_STEPS.map(function(x){ return {s:x,done:false,min:'',date:''}; }); }
 function isOpen(p){ return p.stage==='lead'||p.stage==='discussion'||p.stage==='contract'||p.stage==='future'; }
 
@@ -684,7 +702,7 @@ function tabBody(){
     F('contactName','Contact name','text')+F('email','Email','email')+F('phone','Phone','tel')+F('tags','Tags','text',{ph:'comma separated'})+
     F('service','Service','select',{options:SERVICES})+F('source','Source','select',{options:SOURCES})+
     '<label class="f"><span>Type</span><select data-k="type">'+TYPES.map(function(t){ return '<option value="'+t.k+'"'+(typeOf(p)===t.k?' selected':'')+'>'+t.label+'</option>'; }).join('')+'</select><span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">Dashboard “Clients” view counts only Client projects.</span></label>'+
-    '<label class="f"><span>Last contact</span><input type="text" value="'+esc(p.lastContact?fmtDate(p.lastContact)+' ('+rel(p.lastContact)+')':'No email synced yet')+'" disabled><span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">From email sync with this project’s email address.</span></label>'+
+    '<div class="f span2" id="lcBox">'+lastContactHtml(p)+'</div>'+
     (p.stage==='closed'?F('closedReason','Why closed','select',{options:CLOSE_REASONS}):'')+
     '</div></div><div class="section"><h3>Next step</h3><div class="grid">'+
     F('nextStep','What happens next','text',{ph:'e.g. Send proposal'})+F('nextDate','By when','date')+
@@ -785,7 +803,49 @@ function wireChecklist(){
   t.addEventListener('click',function(e){ var b=e.target.closest('[data-c=rm]'); if(!b) return; var c=checklistOf(D.draft); c.splice(+b.closest('tr').dataset.i,1); if(!c.length) c=[{s:'New step',done:false,min:'',date:''}]; save(c); drawDrawer(); });
   $('#chkAdd').onclick=function(){ var c=checklistOf(D.draft); c.push({s:'',done:false,min:'',date:''}); save(c); drawDrawer(); var ins=$$('#chk input[data-c=s]'); ins[ins.length-1].focus(); };
 }
+function lastContactHtml(p){
+  var t=lastTouch(p), ct=t&&CONTACT_TYPES.filter(function(c){ return c.k===t.type||(t.type==='meeting'&&c.k==='face-to-face'); })[0];
+  return '<span>Last contact</span>'+
+    '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink);font-size:1rem;background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 11px">'+
+    (t?'<span>'+(ct?ct.ic+' '+esc(ct.label):esc(t.type))+' · <b>'+fmtDate(t.date)+'</b> <span class="muted">('+rel(t.date)+')</span></span>':'<span class="muted">No contact logged yet</span>')+
+    '<button class="btn sm" id="lcOpen" style="margin-left:auto">+ Log contact</button></div>'+
+    (t&&t.text?'<span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400;white-space:pre-wrap">“'+esc(String(t.text).length>160?String(t.text).slice(0,160)+'…':t.text)+'”</span>':'')+
+    '<div id="lcForm" class="card hidden" style="margin-top:8px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink)">'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap" id="lcTypes">'+CONTACT_TYPES.map(function(c,i){ return '<button type="button" class="btn ghost sm'+(i===0?' on':'')+'" data-ct="'+c.k+'" aria-pressed="'+(i===0)+'">'+c.ic+' '+c.label+'</button>'; }).join('')+'</div>'+
+      '<div class="grid" style="margin-top:10px"><label class="f">Date<input type="date" id="lcDate" value="'+todayStr()+'" max="'+todayStr()+'"></label><span></span>'+
+      '<label class="f span3">What was said?<textarea id="lcText" rows="3" placeholder="Paste the text thread, or jot down the call / conversation…"></textarea></label></div>'+
+      '<div style="display:flex;gap:8px;margin-top:10px"><button class="btn sm" id="lcSave">Save contact</button><button class="btn ghost sm" id="lcCancel">Cancel</button></div>'+
+    '</div>';
+}
+function wireLastContact(){
+  var open=$('#lcOpen'); if(!open) return;
+  var type='text';
+  open.onclick=function(e){ e.preventDefault(); $('#lcForm').classList.remove('hidden'); open.classList.add('hidden'); $('#lcText').focus(); };
+  $('#lcCancel').onclick=function(){ $('#lcForm').classList.add('hidden'); open.classList.remove('hidden'); };
+  $$('#lcTypes button').forEach(function(b){ b.onclick=function(){ type=b.dataset.ct; $$('#lcTypes button').forEach(function(x){ var on=x===b; x.classList.toggle('on',on); x.setAttribute('aria-pressed',on); x.style.background=on?'var(--green)':''; x.style.color=on?'#fff':''; }); }; });
+  $$('#lcTypes button')[0].click();
+  $('#lcSave').onclick=function(){
+    var btn=this, date=$('#lcDate').value||todayStr(), text=$('#lcText').value.trim();
+    var label=CONTACT_TYPES.filter(function(c){ return c.k===type; })[0].label;
+    var ts = date===todayStr() ? new Date().toISOString() : new Date(date+'T12:00:00').toISOString();
+    btn.disabled=true; btn.textContent='Saving…';
+    api('addLog',{projectId:D.id, type:type, text:text||label, ts:ts}).then(function(j){
+      var entry=j.entry; if(localDay(entry.ts)!==date) entry.ts=ts; // older backend ignores the date
+      S.log.push(entry);
+      var p=byId(D.id);
+      if(p && (!p.lastContact || date>p.lastContact)){
+        return api('saveProject',{project:{id:D.id, lastContact:date}}).then(function(r){ if(r.project.lastContact){ p.lastContact=r.project.lastContact; D.draft.lastContact=r.project.lastContact; } }).catch(function(){});
+      }
+    }).then(function(){ $('#lcBox').innerHTML=lastContactHtml(D.draft); wireLastContact(); render(); toast(label+' logged'); })
+      .catch(function(e){ btn.disabled=false; btn.textContent='Save contact'; if(e.message!=='signed out') toast(e.message,true); });
+  };
+}
 function wireTab(){
+  wireLastContact();
+  var ph=$('#dbody input[data-k=phone]');
+  if(ph){ ph.setAttribute('inputmode','tel'); ph.setAttribute('placeholder','(317) 555-0142');
+    ph.addEventListener('input',function(e){ if(e.inputType&&e.inputType.indexOf('delete')===0) return; var f=fmtPhone(ph.value); if(f!==ph.value){ ph.value=f; D.draft.phone=f; } });
+    ph.addEventListener('blur',function(){ var f=fmtPhone(ph.value); if(f!==ph.value){ ph.value=f; D.draft.phone=f; setDirty(true); } }); }
   wireChecklist();
   var pa=$('#payAdd'); if(pa) pa.onclick=function(){
     var amt=$('#payAmt').value; if(!(num(amt)>0)){ $('#payAmt').focus(); toast('Enter an amount',true); return; }
@@ -1016,7 +1076,7 @@ function openNew(preset){
     var stage=$('#nStage').value, notes=$('#nNotes').value.trim(), x=notes?parseConsult(notes):{};
     var p={name:name, contactName:$('#nContact').value.trim(), email:$('#nEmail').value.trim(), stage:stage, type:$('#nType').value, service:$('#nService').value, source:$('#nSource').value, firstContact:todayStr(), nextDate:$('#nNext').value, nextStep: stage==='lead'?'Reply and book 30-min consult':''};
     if(x.org && x.org!==name) p.org=x.org;
-    if(x.phone) p.phone=x.phone; if(x.liveUrl) p.liveUrl=x.liveUrl; if(x.value) p.value=x.value; if(x.deliveryDue) p.deliveryDue=x.deliveryDue;
+    if(x.phone) p.phone=fmtPhone(x.phone); if(x.liveUrl) p.liveUrl=x.liveUrl; if(x.value) p.value=x.value; if(x.deliveryDue) p.deliveryDue=x.deliveryDue;
     if(notes){ p.scope=notes; if(stage==='lead'||stage==='discussion') p.consultDate=todayStr(); }
     if(stage==='contract') p.contractDate=todayStr();
     var btn=this; btn.disabled=true;

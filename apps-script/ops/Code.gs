@@ -192,7 +192,7 @@ function route_(req) {
   return withLock_(function () {
     if (a === 'saveProject') return { ok: true, project: saveProject_(req.project) };
     if (a === 'deleteProject') return deleteProject_(req.id);
-    if (a === 'addLog') return { ok: true, entry: addLog_(req.projectId, req.type || 'note', req.text) };
+    if (a === 'addLog') return { ok: true, entry: addLog_(req.projectId, req.type || 'note', req.text, req.ts) };
     if (a === 'deleteLog') { deleteRow_(TAB_LOG, req.id); return { ok: true }; }
     if (a === 'uploadFile') return { ok: true, file: uploadFile_(req) };
     if (a === 'addFileLink') return { ok: true, file: addFileLink_(req) };
@@ -356,9 +356,10 @@ function deleteProject_(id) {
   return { ok: true };
 }
 
-function addLog_(projectId, type, text) {
+function addLog_(projectId, type, text, ts) {
   if (!projectId) throw new Error('Missing project');
-  return writeObj_(TAB_LOG, { id: newId_('l'), projectId: projectId, ts: nowIso_(), type: type, text: String(text || '').slice(0, 20000) }, LOG_FIELDS);
+  var when = ts && !isNaN(new Date(ts)) && new Date(ts) <= new Date(Date.now() + 864e5) ? new Date(ts).toISOString() : nowIso_();
+  return writeObj_(TAB_LOG, { id: newId_('l'), projectId: projectId, ts: when, type: type, text: String(text || '').slice(0, 20000) }, LOG_FIELDS);
 }
 
 function uploadFile_(req) {
