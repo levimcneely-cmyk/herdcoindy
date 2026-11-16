@@ -314,6 +314,7 @@
     <span>&copy; <span id="yr">2026</span> The Herd Co. · Greenwood / Indianapolis, Indiana</span>
   </div>
 </footer>
+<script src="assets/ops-config.js"></script>
 <script>
 document.getElementById('yr').textContent=new Date().getFullYear();
 (function(){
@@ -328,7 +329,11 @@ document.getElementById('yr').textContent=new Date().getFullYear();
     b.disabled=true; b.textContent='Sending…'; s.className='status'; s.textContent='';
     fetch('https://formsubmit.co/ajax/levi@herdcoindy.com',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)})
       .then(function(r){return r.json().then(function(j){ if(!r.ok||String(j.success)!=='true') throw new Error(j.message||'failed'); });})
-      .then(function(){ f.reset(); s.className='status ok'; s.textContent="Thanks! We got your note and will reach out within a day or two to set up your consult."; })
+      .then(function(){
+        // Also drop the request into the Herd Co. ops pipeline as a lead (best effort).
+        var ops=window.HERD_OPS&&window.HERD_OPS.api;
+        if(ops){ try{ fetch(ops,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'lead',name:d.name,email:d.email,group:d.group,need:d.need,message:d.message})}).catch(function(){}); }catch(e){} }
+        f.reset(); s.className='status ok'; s.textContent="Thanks! We got your note and will reach out within a day or two to set up your consult."; })
       .catch(function(){ s.className='status err'; s.textContent="Something went wrong sending that. Please try again in a minute."; })
       .finally(function(){ b.disabled=false; b.textContent='Request a consult'; });
   });
