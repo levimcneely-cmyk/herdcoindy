@@ -374,7 +374,7 @@ function byId(id){ return S.projects.filter(function(p){ return String(p.id)===S
 function title(p){ return p.name || p.org || p.contactName || 'Untitled'; }
 function filesFor(id){ return S.files.filter(function(f){ return String(f.projectId)===String(id); }); }
 function logFor(id){ return S.log.filter(function(l){ return String(l.projectId)===String(id); }).sort(function(a,b){ return String(b.ts).localeCompare(String(a.ts)); }); }
-function typeOf(p){ return p.type || 'client'; }
+function typeOf(p){ if(p.type) return p.type; if(/personal/i.test(p.org||'')) return 'personal'; if(/^levi mcneely/i.test(p.contactName||'')) return 'internal'; return 'client'; }
 function inScope(p){ return S.scope==='all' || typeOf(p)==='client'; }
 function paymentsFor(id){ return S.payments.filter(function(x){ return String(x.projectId)===String(id); }).sort(function(a,b){ return String(b.date).localeCompare(String(a.date)); }); }
 function paidFor(p){ var ps=paymentsFor(p.id); return ps.length ? ps.reduce(function(t,x){ return t+num(x.amount); },0) : num(p.paid); }
