@@ -426,7 +426,7 @@ var SITE_KIT_TEMPLATE = [
 
 /* ================= state ================= */
 var S = { projects:[], log:[], files:[], payments:[], health:[], settings:{}, sheetUrl:'', folderUrl:'', view:'dash', q:'', sort:{k:'updated',dir:-1}, stageFilter:'open', scope:'client' };
-try{ S.scope = localStorage.getItem('herdOpsScope') || 'client'; }catch(e){}
+try{ localStorage.removeItem('herdOpsScope'); }catch(e){} // always open on Clients
 var D = null; // drawer state {id, draft, tab, dirty}
 
 /* ================= helpers ================= */
@@ -529,7 +529,7 @@ function boot(){
 /* ================= views ================= */
 $('#tabs').onclick=function(e){ var b=e.target.closest('button[data-view]'); if(!b) return; S.view=b.dataset.view; $$('#tabs button').forEach(function(x){ x.classList.toggle('on',x===b); }); render(); window.scrollTo(0,0); };
 function paintScope(){ $$('#scope button').forEach(function(b){ b.classList.toggle('on', b.dataset.scope===S.scope); }); }
-$('#scope').onclick=function(e){ var b=e.target.closest('button'); if(!b) return; S.scope=b.dataset.scope; try{ localStorage.setItem('herdOpsScope',S.scope); }catch(err){} paintScope(); render(); };
+$('#scope').onclick=function(e){ var b=e.target.closest('button'); if(!b) return; S.scope=b.dataset.scope; paintScope(); render(); };
 paintScope();
 $('#q').oninput=function(){ S.q=this.value; var m=$('#q2'); if(m) m.value=this.value; if(S.view==='dash'&&S.q){ S.view='all'; $$('#tabs button').forEach(function(x){ x.classList.toggle('on',x.dataset.view==='all'); }); } render(true); };
 
@@ -552,7 +552,7 @@ function render(keepFocus){
   $('#main').innerHTML=html;
   var q2=$('#q2'); if(q2){ q2.oninput=function(){ S.q=this.value; $('#q').value=this.value; if(S.view==='dash'&&S.q){ S.view='all'; $$('#tabs button').forEach(function(x){ x.classList.toggle('on',x.dataset.view==='all'); }); } render(true); }; if(focused&&keepFocus){ q2.focus(); q2.setSelectionRange(q2.value.length,q2.value.length); } }
   $$('[data-open]').forEach(function(el){ el.onclick=function(){ openProject(el.dataset.open); }; });
-  $$('.mscope button').forEach(function(b){ b.onclick=function(){ S.scope=b.dataset.scope; try{ localStorage.setItem('herdOpsScope',S.scope); }catch(err){} paintScope(); render(); }; });
+  $$('.mscope button').forEach(function(b){ b.onclick=function(){ S.scope=b.dataset.scope; paintScope(); render(); }; });
   if(v==='board') wireBoard();
   if(v==='all'){
     $$('th[data-sort]').forEach(function(th){ th.onclick=function(){ var k=th.dataset.sort; S.sort = S.sort.k===k?{k:k,dir:-S.sort.dir}:{k:k,dir:1}; render(); }; });
