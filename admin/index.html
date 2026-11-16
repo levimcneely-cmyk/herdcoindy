@@ -8,6 +8,10 @@
 <meta name="theme-color" content="#163823">
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Herd Ops">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
@@ -201,6 +205,28 @@
   #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-size:.92rem;z-index:90;box-shadow:0 8px 24px rgba(0,0,0,.2)}
   #toast.err{background:var(--red)}
   .loading{padding:60px 0;text-align:center;color:var(--muted)}
+  .scope{margin-left:auto;display:flex;gap:4px;align-items:center;padding:6px 0}
+  .scope button{background:rgba(255,255,255,.1);border:0;color:rgba(255,255,255,.75);padding:5px 12px;border-radius:999px;font-size:.82rem;font-weight:600;cursor:pointer}
+  .scope button.on{background:var(--tan);color:var(--green)}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#c9c6bc;vertical-align:middle}
+  .dot.ok{background:#3c8a54}.dot.bad{background:var(--red)}
+  .tbadge{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+  .chk{width:100%;border-collapse:collapse;margin-top:6px}
+  .chk td{padding:6px 6px 6px 0;border:0;vertical-align:middle}
+  .chk input[type=checkbox]{width:20px;height:20px;accent-color:var(--green)}
+  .chk input[type=number]{width:90px}
+  .chk tr.done input[type=text]{text-decoration:line-through;color:var(--muted)}
+  .paylist{list-style:none;padding:0;margin:12px 0 0}
+  .paylist li{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:6px;font-size:.95rem}
+  .paylist .amt{font-weight:700;color:var(--green);min-width:90px}
+  .paylist .linkbtn{margin-left:auto;color:var(--red);font-size:.85rem}
+  .bar{height:8px;background:var(--soft);border-radius:999px;overflow:hidden;margin-top:6px}
+  .bar span{display:block;height:100%;background:var(--green)}
+  .fab{display:none;position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:35;background:var(--green);color:#fff;border:0;border-radius:999px;padding:14px 20px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:1rem}
+  @media (max-width:720px){.fab{display:block} header.top .btn.light{display:none}}
+  .seg{display:inline-flex;border:1px solid rgba(255,255,255,.4);border-radius:999px;overflow:hidden}
+  .seg button{background:transparent;color:#fff;border:0;padding:6px 12px;font-weight:600;cursor:pointer;font-size:.85rem}
+  .seg button.on{background:#fff;color:var(--green)}
   footer.ft{border-top:1px solid var(--line);padding:22px 18px;color:var(--muted);font-size:.85rem;display:flex;gap:12px;align-items:center;justify-content:center}
   footer.ft img{height:24px}
 </style>
@@ -237,6 +263,7 @@
           <a id="sheetLink" target="_blank" rel="noopener">Open the Google Sheet</a>
           <a id="folderLink" target="_blank" rel="noopener">Open contracts folder</a>
           <button id="refreshBtn">Refresh data</button>
+          <button id="settingsBtn">Settings &amp; automations</button>
           <button id="pwBtn">Change password</button>
           <button id="logoutBtn">Sign out</button>
         </div>
@@ -247,12 +274,14 @@
       <button data-view="board">Pipeline</button>
       <button data-view="sites">Sites</button>
       <button data-view="all">All projects</button>
+      <span class="scope" id="scope"><button data-scope="client">Clients</button><button data-scope="all">Everything</button></span>
     </nav>
   </header>
   <main id="main"><div class="loading">Loading…</div></main>
   <footer class="ft"><img src="../assets/icon.png" alt=""><span>&copy; <span id="yr">2026</span> The Herd Co. · Greenwood / Indianapolis, Indiana</span></footer>
 </div>
 
+<button class="fab hidden" id="fab">+ Lead</button>
 <div id="drawer" class="hidden"></div>
 <div id="spec" class="hidden"></div>
 <div id="modal" class="modal hidden"></div>
@@ -278,6 +307,10 @@ var SERVICES = ['Event site','Group site','Operations tool','AI agent','Not sure
 var SOURCES = ['Website form','Referral','Friend / network','Repeat client','Social','Other'];
 var FILE_KINDS = ['Executed contract','Proposal / SOW','Change order','Invoice','Receipt','Handoff doc','Other'];
 var LOG_TYPES = ['note','call','email','meeting','text'];
+var TYPES = [{k:'client',label:'Client'},{k:'internal',label:'Internal'},{k:'personal',label:'Personal'}];
+var PAY_METHODS = ['Venmo','Check','ACH / Found','Card','Cash','Other'];
+var CLOSE_REASONS = ['Lost — price','Lost — timing','Went with someone else','Not a fit','No response','Retired / sunset','Other'];
+var DEFAULT_STEPS = ['Consult','Deploy','Test / validate','Handoff'];
 
 var SITE_KIT_TEMPLATE = [
 '## Pattern',
@@ -309,11 +342,16 @@ var SITE_KIT_TEMPLATE = [
 '1. ',
 '',
 '## Gotchas',
-'- '
+'- ',
+'',
+'## Internal notes',
+'- Where keys/passcodes live (never the values): ',
+'- Billing / care plan: '
 ].join('\n');
 
 /* ================= state ================= */
-var S = { projects:[], log:[], files:[], sheetUrl:'', folderUrl:'', view:'dash', q:'', sort:{k:'updated',dir:-1}, stageFilter:'open' };
+var S = { projects:[], log:[], files:[], payments:[], health:[], settings:{}, sheetUrl:'', folderUrl:'', view:'dash', q:'', sort:{k:'updated',dir:-1}, stageFilter:'open', scope:'client' };
+try{ S.scope = localStorage.getItem('herdOpsScope') || 'client'; }catch(e){}
 var D = null; // drawer state {id, draft, tab, dirty}
 
 /* ================= helpers ================= */
@@ -336,6 +374,14 @@ function byId(id){ return S.projects.filter(function(p){ return String(p.id)===S
 function title(p){ return p.name || p.org || p.contactName || 'Untitled'; }
 function filesFor(id){ return S.files.filter(function(f){ return String(f.projectId)===String(id); }); }
 function logFor(id){ return S.log.filter(function(l){ return String(l.projectId)===String(id); }).sort(function(a,b){ return String(b.ts).localeCompare(String(a.ts)); }); }
+function typeOf(p){ return p.type || 'client'; }
+function inScope(p){ return S.scope==='all' || typeOf(p)==='client'; }
+function paymentsFor(id){ return S.payments.filter(function(x){ return String(x.projectId)===String(id); }).sort(function(a,b){ return String(b.date).localeCompare(String(a.date)); }); }
+function paidFor(p){ var ps=paymentsFor(p.id); return ps.length ? ps.reduce(function(t,x){ return t+num(x.amount); },0) : num(p.paid); }
+function healthFor(id){ return S.health.filter(function(h){ return String(h.projectId)===String(id); }); }
+function healthDot(id){ var h=healthFor(id); if(!h.length) return '<span class="dot" title="Not checked"></span>'; var bad=h.filter(function(x){ return x.ok==='no'; }); return bad.length?'<span class="dot bad" title="'+esc(bad.map(function(b){ return b.kind+': '+b.detail; }).join(' | '))+'"></span>':'<span class="dot ok" title="All checks passing"></span>'; }
+function lastContactOf(p){ return p.lastContact || String(p.created||'').slice(0,10); }
+function checklistOf(p){ try{ var c=JSON.parse(p.checklist||'[]'); if(Array.isArray(c)&&c.length) return c; }catch(e){} return DEFAULT_STEPS.map(function(x){ return {s:x,done:false,min:'',date:''}; }); }
 function isOpen(p){ return p.stage==='lead'||p.stage==='discussion'||p.stage==='contract'||p.stage==='future'; }
 
 function toast(msg, err){ var t=$('#toast'); t.textContent=msg; t.className=err?'err':''; clearTimeout(toast._t); toast._t=setTimeout(function(){ t.className='hidden'; }, err?5000:2400); }
@@ -358,7 +404,7 @@ function api(action, data){
 
 /* ================= login ================= */
 function showLogin(msg){
-  $('#app').classList.add('hidden'); $('#drawer').classList.add('hidden'); D=null;
+  $('#app').classList.add('hidden'); $('#drawer').classList.add('hidden'); $('#fab').classList.add('hidden'); D=null;
   $('#login').classList.remove('hidden');
   $('#loginErr').textContent = msg||'';
   setTimeout(function(){ $('#pw').focus(); }, 50);
@@ -380,7 +426,8 @@ function boot(){
   $('#app').classList.remove('hidden');
   $('#main').innerHTML='<div class="loading">Loading…</div>';
   return api('bootstrap').then(function(j){
-    S.projects=j.projects||[]; S.log=j.log||[]; S.files=j.files||[];
+    S.projects=j.projects||[]; S.log=j.log||[]; S.files=j.files||[]; S.payments=j.payments||[]; S.health=j.health||[]; S.settings=j.settings||{};
+    $('#fab').classList.remove('hidden');
     S.sheetUrl=j.sheetUrl||''; S.folderUrl=j.folderUrl||'';
     $('#sheetLink').href=S.sheetUrl||'#'; $('#folderLink').href=S.folderUrl||'#';
     render();
@@ -389,7 +436,10 @@ function boot(){
 }
 
 /* ================= views ================= */
-$('#tabs').onclick=function(e){ var b=e.target.closest('button'); if(!b) return; S.view=b.dataset.view; $$('#tabs button').forEach(function(x){ x.classList.toggle('on',x===b); }); render(); window.scrollTo(0,0); };
+$('#tabs').onclick=function(e){ var b=e.target.closest('button[data-view]'); if(!b) return; S.view=b.dataset.view; $$('#tabs button').forEach(function(x){ x.classList.toggle('on',x===b); }); render(); window.scrollTo(0,0); };
+function paintScope(){ $$('#scope button').forEach(function(b){ b.classList.toggle('on', b.dataset.scope===S.scope); }); }
+$('#scope').onclick=function(e){ var b=e.target.closest('button'); if(!b) return; S.scope=b.dataset.scope; try{ localStorage.setItem('herdOpsScope',S.scope); }catch(err){} paintScope(); render(); };
+paintScope();
 $('#q').oninput=function(){ S.q=this.value; var m=$('#q2'); if(m) m.value=this.value; if(S.view==='dash'&&S.q){ S.view='all'; $$('#tabs button').forEach(function(x){ x.classList.toggle('on',x.dataset.view==='all'); }); } render(true); };
 
 function matches(p){
@@ -419,19 +469,20 @@ function render(keepFocus){
 }
 
 function renderDash(){
-  var P=S.projects, t=todayStr(), year=t.slice(0,4);
+  var P=S.projects.filter(inScope), t=todayStr(), year=t.slice(0,4), stale=num(S.settings.staleDays)||14;
   var pipe=P.filter(function(p){ return p.stage==='lead'||p.stage==='discussion'; });
   var con=P.filter(function(p){ return p.stage==='contract'; });
   var live=P.filter(function(p){ return p.stage==='live'; });
   var booked=P.filter(function(p){ return (p.stage==='contract'||p.stage==='live'||p.stage==='closed') && String(p.contractDate).slice(0,4)===year; });
   var sum=function(a,k){ return a.reduce(function(s,p){ return s+num(p[k]); },0); };
-  var outstanding=P.filter(function(p){ return p.stage==='contract'||p.stage==='live'; }).reduce(function(s,p){ return s+Math.max(0,num(p.value)-num(p.paid)); },0);
+  var outstanding=P.filter(function(p){ return p.stage==='contract'||p.stage==='live'; }).reduce(function(s,p){ return s+Math.max(0,num(p.value)-paidFor(p)); },0);
+  var collectedYr=S.payments.filter(function(x){ var p=byId(x.projectId); return p&&inScope(p)&&String(x.date).slice(0,4)===year; }).reduce(function(t,x){ return t+num(x.amount); },0);
 
   var kpis='<div class="kpis">'+
     kpi('Open pipeline', pipe.length, money(sum(pipe,'value'))+' potential · '+P.filter(function(p){return p.stage==='lead';}).length+' new leads')+
     kpi('Under contract', con.length, money(sum(con,'value'))+' contracted')+
-    kpi('Live sites', live.length, money(sum(live,'monthly'))+'/mo recurring')+
-    kpi('Booked '+year, money(sum(booked,'value')), money(outstanding)+' still to collect')+
+    kpi(S.scope==='client'?'Live client sites':'Live (everything)', live.length, money(sum(live,'monthly'))+'/mo recurring')+
+    kpi('Booked '+year, money(sum(booked,'value')), money(collectedYr)+' collected · '+money(outstanding)+' to collect')+
   '</div>';
 
   // attention
@@ -443,21 +494,53 @@ function renderDash(){
     if(p.stage==='live' && p.renewalDate && (d=dayDiff(p.renewalDate))!==null && d<=45) att.push({p:p, sort:d+0.2, flag: d<0?'<span class="flag red">Renewal passed</span>':'<span class="flag amber">Renews '+rel(p.renewalDate)+'</span>', txt:'Renewal '+fmtDate(p.renewalDate)+(p.domain?' · '+p.domain:'')});
     if(p.stage==='contract' && !filesFor(p.id).some(function(f){ return f.kind==='Executed contract'; })) att.push({p:p, sort:999, flag:'<span class="flag amber">No contract on file</span>', txt:'Upload the executed contract'});
     if(p.stage==='lead' && !p.nextDate) att.push({p:p, sort:998, flag:'<span class="flag amber">New lead</span>', txt:'Set a next step'});
+    if(typeOf(p)==='client' && (p.stage==='lead'||p.stage==='discussion'||p.stage==='contract') && (d=dayDiff(lastContactOf(p)))!==null && -d>=stale) att.push({p:p, sort:500, flag:'<span class="flag amber">Gone quiet</span>', txt:'No contact in '+(-d)+' days'});
+    if((p.stage==='live'||p.stage==='contract') && num(p.value) && p.deliveredDate && paidFor(p)<num(p.value)) att.push({p:p, sort:600, flag:'<span class="flag amber">Balance due</span>', txt:money(num(p.value)-paidFor(p))+' outstanding'});
   });
   att.sort(function(a,b){ return a.sort-b.sort; });
-  var attHtml='<div class="card"><h3>Needs attention</h3>'+(att.length?'<ul class="list">'+att.slice(0,14).map(function(a){ return '<li data-open="'+esc(a.p.id)+'"><span>'+a.flag+'</span><span><span class="nm">'+esc(title(a.p))+'</span> <span class="muted small">— '+esc(a.txt)+'</span></span></li>'; }).join('')+'</ul>':'<p class="empty">All clear. Nothing due in the next few days.</p>')+'</div>';
+  var attHtml='<div class="card"><h3>Needs attention</h3>'+(att.length?'<ul class="list">'+att.slice(0,16).map(function(a){ return '<li data-open="'+esc(a.p.id)+'"><span>'+a.flag+'</span><span><span class="nm">'+esc(title(a.p))+'</span> <span class="muted small">— '+esc(a.txt)+'</span></span></li>'; }).join('')+'</ul>':'<p class="empty">All clear. Nothing due in the next few days.</p>')+'</div>';
+
+  // site health (always across everything you run)
+  var down=S.health.filter(function(h){ return h.ok==='no'; });
+  var checked=S.settings.lastHealth;
+  var hHtml='<div class="card" style="margin-bottom:18px"><h3 style="display:flex;justify-content:space-between;align-items:center">Site health <button class="btn ghost sm" id="runChecks">Run checks now</button></h3>'+
+    (!S.health.length?'<p class="empty">No checks yet. Run them now, then turn on nightly checks in Settings.</p>':
+     down.length?'<ul class="list">'+down.map(function(h){ return '<li data-open="'+esc(h.projectId)+'"><span class="flag red">Down</span><span><span class="nm">'+esc(h.name)+'</span> <span class="muted small">'+esc(h.kind)+' — '+esc(h.detail)+'</span></span></li>'; }).join('')+'</ul>'
+       :'<p class="empty" style="color:var(--green)"><span class="dot ok"></span> All '+S.health.length+' checks passing.</p>')+
+    (checked?'<p class="hint">Last checked '+fmtTs(checked)+(S.settings.automations?' · runs nightly at 3 AM':' · <button class="linkbtn" id="goSettings">turn on nightly checks</button>')+'</p>':'')+'</div>';
 
   var due=con.filter(function(p){ return p.deliveryDue; }).sort(function(a,b){ return String(a.deliveryDue).localeCompare(String(b.deliveryDue)); });
   var dueHtml='<div class="card" style="margin-top:18px"><h3>Delivery schedule</h3>'+(due.length?'<ul class="list">'+due.map(function(p){ var d=dayDiff(p.deliveryDue); return '<li data-open="'+esc(p.id)+'"><span class="nm">'+esc(title(p))+'</span><span class="muted small">'+esc(p.service||'')+'</span><span class="rt '+(d<0?'':'muted')+'" style="'+(d<0?'color:var(--red);font-weight:600':'')+'">'+fmtDate(p.deliveryDue)+' · '+rel(p.deliveryDue)+'</span></li>'; }).join('')+'</ul>':'<p class="empty">No contracted deliveries scheduled.</p>')+'</div>';
 
-  var recent=S.log.slice().sort(function(a,b){ return String(b.ts).localeCompare(String(a.ts)); }).slice(0,10);
-  var recHtml='<div class="card"><h3>Recent activity</h3>'+(recent.length?'<ul class="list">'+recent.map(function(l){ var p=byId(l.projectId); if(!p) return ''; return '<li data-open="'+esc(p.id)+'" style="flex-direction:column;gap:2px"><span><span class="nm">'+esc(title(p))+'</span> <span class="muted small">'+esc(logLabel(l))+'</span></span><span class="muted small">'+fmtTs(l.ts)+'</span></li>'; }).join('')+'</ul>':'<p class="empty">Nothing yet. Add your first lead with “+ New”.</p>')+'</div>';
+  var recent=S.log.filter(function(l){ var p=byId(l.projectId); return p&&inScope(p); }).sort(function(a,b){ return String(b.ts).localeCompare(String(a.ts)); }).slice(0,10);
+  var recHtml='<div class="card"><h3>Recent activity</h3>'+(recent.length?'<ul class="list">'+recent.map(function(l){ var p=byId(l.projectId); return '<li data-open="'+esc(p.id)+'" style="flex-direction:column;gap:2px"><span><span class="nm">'+esc(title(p))+'</span> <span class="muted small">'+esc(logLabel(l))+'</span></span><span class="muted small">'+fmtTs(l.ts)+'</span></li>'; }).join('')+'</ul>':'<p class="empty">Nothing yet. Add your first lead with “+ New”.</p>')+'</div>';
 
-  var stageRow='<div class="card" style="margin-top:18px"><h3>By stage</h3><ul class="list">'+STAGES.map(function(s){ var n=P.filter(function(p){ return p.stage===s.k; }); return '<li onclick="" data-stage-jump="'+s.k+'"><span>'+pill(s.k)+'</span><span class="muted small">'+esc(s.hint)+'</span><span class="rt"><b>'+n.length+'</b>'+(n.length?' · '+money(sum(n,'value')):'')+'</span></li>'; }).join('')+'</ul></div>';
+  var stageRow='<div class="card" style="margin-top:18px"><h3>By stage</h3><ul class="list">'+STAGES.map(function(s){ var n=P.filter(function(p){ return p.stage===s.k; }); return '<li data-stage-jump="'+s.k+'"><span>'+pill(s.k)+'</span><span class="muted small">'+esc(s.hint)+'</span><span class="rt"><b>'+n.length+'</b>'+(n.length?' · '+money(sum(n,'value')):'')+'</span></li>'; }).join('')+'</ul></div>';
 
-  setTimeout(function(){ $$('[data-stage-jump]').forEach(function(el){ el.onclick=function(){ S.view='all'; S.stageFilter=el.dataset.stageJump; $$('#tabs button').forEach(function(x){ x.classList.toggle('on',x.dataset.view==='all'); }); render(); }; }); },0);
+  // lead sources + win rate (clients only)
+  var C=S.projects.filter(function(p){ return typeOf(p)==='client'; }), src={};
+  var won=function(p){ return p.stage==='contract'||p.stage==='live'||(p.stage==='closed'&&!!p.contractDate); };
+  C.forEach(function(p){ var k=p.source||'Unknown'; src[k]=src[k]||{n:0,w:0,lost:0,v:0}; src[k].n++; if(won(p)){ src[k].w++; src[k].v+=num(p.value); } if(p.stage==='closed'&&!p.contractDate) src[k].lost++; });
+  var reasons={}; C.forEach(function(p){ if(p.stage==='closed'&&p.closedReason) reasons[p.closedReason]=(reasons[p.closedReason]||0)+1; });
+  var keys=Object.keys(src).sort(function(a,b){ return src[b].n-src[a].n; });
+  var decided=C.filter(function(p){ return won(p)||p.stage==='closed'; }).length, wins=C.filter(won).length;
+  var srcHtml='<div class="card" style="margin-top:18px"><h3>Where clients come from</h3>'+(keys.length?
+    '<p class="hint" style="margin-top:4px">Win rate '+(decided?Math.round(100*wins/decided)+'%':'—')+' ('+wins+' won of '+decided+' decided)</p><ul class="list">'+keys.map(function(k){ var x=src[k]; return '<li style="cursor:default;flex-direction:column;align-items:stretch;gap:2px"><span style="display:flex"><span class="nm">'+esc(k)+'</span><span class="rt">'+x.w+'/'+x.n+' won'+(x.v?' · '+money(x.v):'')+'</span></span><span class="bar"><span style="width:'+Math.round(100*x.w/x.n)+'%"></span></span></li>'; }).join('')+'</ul>'+
+    (Object.keys(reasons).length?'<p class="hint" style="margin-top:10px">Why closed: '+Object.keys(reasons).map(function(r){ return esc(r)+' ('+reasons[r]+')'; }).join(' · ')+'</p>':'')
+    :'<p class="empty">No client projects yet.</p>')+'</div>';
 
-  return kpis+'<div class="cols2"><div>'+attHtml+dueHtml+'</div><div>'+recHtml+stageRow+'</div></div>';
+  setTimeout(function(){
+    $$('[data-stage-jump]').forEach(function(el){ el.onclick=function(){ S.view='all'; S.stageFilter=el.dataset.stageJump; $$('#tabs button').forEach(function(x){ x.classList.toggle('on',x.dataset.view==='all'); }); render(); }; });
+    var rc=$('#runChecks'); if(rc) rc.onclick=runChecks;
+    var gs=$('#goSettings'); if(gs) gs.onclick=openSettings;
+  },0);
+
+  return kpis+'<div class="cols2"><div>'+attHtml+dueHtml+srcHtml+'</div><div>'+hHtml+recHtml+stageRow+'</div></div>';
+}
+function runChecks(){
+  var b=$('#runChecks'); if(b){ b.disabled=true; b.textContent='Checking…'; }
+  api('runHealth').then(function(j){ S.health=j.health||[]; S.settings.lastHealth=new Date().toISOString(); render(); var bad=S.health.filter(function(h){ return h.ok==='no'; }).length; toast(bad?bad+' check(s) failing':'All '+S.health.length+' checks passing', !!bad); })
+    .catch(function(e){ if(b){ b.disabled=false; b.textContent='Run checks now'; } if(e.message!=='signed out') toast(e.message,true); });
 }
 function kpi(l,v,s){ return '<div class="card kpi"><div class="lbl">'+esc(l)+'</div><div class="val">'+esc(v)+'</div><div class="sub">'+esc(s)+'</div></div>'; }
 function logLabel(l){
@@ -466,7 +549,7 @@ function logLabel(l){
 }
 
 function renderBoard(){
-  var P=S.projects.filter(matches);
+  var P=S.projects.filter(inScope).filter(matches);
   return '<div class="toolbar"><h2>Pipeline</h2><span class="muted small">Drag cards between columns, or open one to change its stage.</span></div><div class="board">'+STAGES.map(function(s){
     var items=P.filter(function(p){ return p.stage===s.k; }).sort(function(a,b){ return String(a.nextDate||a.deliveryDue||'9999').localeCompare(String(b.nextDate||b.deliveryDue||'9999')) || String(b.updated).localeCompare(String(a.updated)); });
     var tot=items.reduce(function(t,p){ return t+num(p.value); },0);
@@ -481,7 +564,8 @@ function tile(p){
   if(p.stage==='live' && p.liveUrl) foot.push('<span class="small">'+link(p.liveUrl, host(p.liveUrl))+'</span>');
   if(num(p.value)) foot.push('<span class="money">'+money(p.value)+'</span>');
   var meta=[p.org&&p.org!==p.name?p.org:'', p.contactName].filter(Boolean).join(' · ');
-  return '<div class="tile" draggable="true" data-id="'+esc(p.id)+'"><div class="nm">'+esc(title(p))+'</div>'+(meta?'<div class="meta">'+esc(meta)+'</div>':'')+(p.nextStep&&isOpen(p)?'<div class="meta">→ '+esc(p.nextStep)+'</div>':'')+(foot.length?'<div class="foot">'+foot.join('')+'</div>':'')+'</div>';
+  var tb=typeOf(p)!=='client'?'<span class="tbadge">'+esc(typeOf(p))+'</span>':'';
+  return '<div class="tile" draggable="true" data-id="'+esc(p.id)+'"><div class="nm">'+esc(title(p))+tb+'</div>'+(meta?'<div class="meta">'+esc(meta)+'</div>':'')+(p.nextStep&&isOpen(p)?'<div class="meta">→ '+esc(p.nextStep)+'</div>':'')+(foot.length?'<div class="foot">'+foot.join('')+'</div>':'')+'</div>';
 }
 function wireBoard(){
   $$('.tile').forEach(function(t){
@@ -495,29 +579,35 @@ function wireBoard(){
     c.ondrop=function(e){ e.preventDefault(); c.classList.remove('drop'); var id=e.dataTransfer.getData('text/plain'); var p=byId(id); if(!p||p.stage===c.dataset.stage) return; moveStage(p, c.dataset.stage); };
   });
 }
-function moveStage(p, stage){
+function moveStage(p, stage, reason){
+  if(stage==='closed' && reason===undefined){ askCloseReason(p, function(r){ moveStage(p, stage, r); }); return; }
   var patch={id:p.id, stage:stage};
+  if(stage==='closed') patch.closedReason=reason||'';
   if(stage==='contract' && !p.contractDate) patch.contractDate=todayStr();
   if(stage==='live' && !p.deliveredDate) patch.deliveredDate=todayStr();
   var old=Object.assign({},p); Object.assign(p,patch); render();
   api('saveProject',{project:patch}).then(function(j){ replaceProject(j.project); addLocalStageLog(p.id, old.stage, stage); render(); toast('Moved to '+STAGE[stage].label); })
     .catch(function(err){ Object.assign(p,old); render(); if(err.message!=='signed out') toast(err.message,true); });
 }
+function askCloseReason(p, done){
+  modal('<h2>Close “'+esc(title(p))+'”</h2><label class="f">Why is it closing?<select id="crSel">'+CLOSE_REASONS.map(function(r){ return '<option'+(p.closedReason===r?' selected':'')+'>'+esc(r)+'</option>'; }).join('')+'</select></label><p class="hint">Used for the win-rate and “why closed” stats on the dashboard.</p><div class="acts"><button class="btn ghost" data-close>Cancel</button><button class="btn" id="crOk">Close project</button></div>');
+  $('#crOk').onclick=function(){ var r=$('#crSel').value; closeModal(); done(r); };
+}
 function addLocalStageLog(id, a, b){ S.log.push({id:'tmp'+Date.now(), projectId:id, ts:new Date().toISOString(), type:'stage', text:a+'→'+b}); }
 function replaceProject(np){ var i=S.projects.findIndex(function(p){ return String(p.id)===String(np.id); }); if(i>=0) S.projects[i]=np; else S.projects.push(np); }
 
 function renderSites(){
-  var P=S.projects.filter(function(p){ return (p.stage==='live'||p.stage==='contract') && matches(p); })
+  var P=S.projects.filter(function(p){ return (p.stage==='live'||p.stage==='contract') && inScope(p) && matches(p); })
     .sort(function(a,b){ return (a.stage===b.stage?0:a.stage==='live'?-1:1) || title(a).localeCompare(title(b)); });
   return '<div class="toolbar"><h2>Sites &amp; builds</h2><span class="muted small">Everything live or in build, with where it lives and how it’s wired.</span></div>'+
-  (P.length?'<div class="tablewrap"><table><thead><tr><th>Client</th><th>Status</th><th>Live</th><th>Admin</th><th>Repo</th><th>Hosting / backend</th><th>Renews</th><th>$/mo</th><th></th></tr></thead><tbody>'+
-  P.map(function(p){ return '<tr data-open="'+esc(p.id)+'"><td><b>'+esc(title(p))+'</b><div class="muted small">'+esc(p.service||'')+'</div></td><td>'+pill(p.stage)+'</td><td>'+(p.liveUrl?link(p.liveUrl,host(p.liveUrl)):'<span class="muted">—</span>')+'</td><td>'+(p.adminUrl?link(p.adminUrl,'admin'):'')+'</td><td>'+(p.repoUrl?link(p.repoUrl,host(p.repoUrl).replace(/^github\.com\//,'')):'')+'</td><td class="small">'+esc([p.hosting,p.backend].filter(Boolean).join(' · '))+'</td><td class="small">'+fmtDate(p.renewalDate)+'</td><td>'+(num(p.monthly)?money(p.monthly):'')+'</td><td><button class="btn ghost sm" data-spec="'+esc(p.id)+'">Spec</button></td></tr>'; }).join('')+
+  (P.length?'<div class="tablewrap"><table><thead><tr><th></th><th>Client</th><th>Status</th><th>Live</th><th>Admin</th><th>Repo</th><th>Hosting / backend</th><th>Renews</th><th>$/mo</th><th></th></tr></thead><tbody>'+
+  P.map(function(p){ return '<tr data-open="'+esc(p.id)+'"><td>'+(String(p.monitor).toLowerCase()==='no'?'<span class="dot" title="Not monitored"></span>':healthDot(p.id))+'</td><td><b>'+esc(title(p))+'</b>'+(typeOf(p)!=='client'?'<span class="tbadge">'+esc(typeOf(p))+'</span>':'')+(p.portfolioReady==='yes'?'<span class="tbadge" style="color:var(--green);border-color:var(--green)">portfolio</span>':'')+'<div class="muted small">'+esc(p.service||'')+'</div></td><td>'+pill(p.stage)+'</td><td>'+(p.liveUrl?link(p.liveUrl,host(p.liveUrl)):'<span class="muted">—</span>')+'</td><td>'+(p.adminUrl?link(p.adminUrl,'admin'):'')+'</td><td>'+(p.repoUrl?link(p.repoUrl,host(p.repoUrl).replace(/^github\.com\//,'')):'')+'</td><td class="small">'+esc([p.hosting,p.backend].filter(Boolean).join(' · '))+'</td><td class="small">'+fmtDate(p.renewalDate)+'</td><td>'+(num(p.monthly)?money(p.monthly):'')+'</td><td><button class="btn ghost sm" data-spec="'+esc(p.id)+'">Spec</button></td></tr>'; }).join('')+
   '</tbody></table></div>':'<div class="card"><p class="empty">No live sites yet. Projects show up here once they’re Under contract or Live.</p></div>')+
   (setTimeout(function(){ $$('[data-spec]').forEach(function(b){ b.onclick=function(e){ e.stopPropagation(); openSpec(byId(b.dataset.spec)); }; }); },0),'');
 }
 
 function renderAll(){
-  var P=S.projects.filter(matches).filter(function(p){ return S.stageFilter==='all' || (S.stageFilter==='open'?isOpen(p)||p.stage==='live':p.stage===S.stageFilter); });
+  var P=S.projects.filter(inScope).filter(matches).filter(function(p){ return S.stageFilter==='all' || (S.stageFilter==='open'?isOpen(p)||p.stage==='live':p.stage===S.stageFilter); });
   var k=S.sort.k, dir=S.sort.dir;
   P.sort(function(a,b){
     var x=a[k], y=b[k];
@@ -530,7 +620,7 @@ function renderAll(){
   var opts='<option value="open">Active (not closed)</option><option value="all">Everything</option>'+STAGES.map(function(s){ return '<option value="'+s.k+'">'+s.label+'</option>'; }).join('');
   return '<div class="toolbar"><h2>All projects</h2><select id="stageFilter">'+opts.replace('value="'+S.stageFilter+'"','value="'+S.stageFilter+'" selected')+'</select><span class="muted small">'+P.length+' shown</span></div>'+
   (P.length?'<div class="tablewrap"><table><thead><tr>'+th('name','Client / project')+th('stage','Stage')+th('service','Service')+th('value','Value')+th('nextDate','Next step')+th('deliveryDue','Delivery')+th('updated','Updated')+'</tr></thead><tbody>'+
-  P.map(function(p){ return '<tr data-open="'+esc(p.id)+'"><td><b>'+esc(title(p))+'</b><div class="muted small">'+esc([p.contactName,p.email].filter(Boolean).join(' · '))+'</div></td><td>'+pill(p.stage)+'</td><td class="small">'+esc(p.service||'')+'</td><td>'+(num(p.value)?money(p.value):'')+'</td><td class="small">'+esc(p.nextStep||'')+(p.nextDate?'<div class="muted">'+fmtDate(p.nextDate)+'</div>':'')+'</td><td class="small">'+fmtDate(p.deliveryDue)+'</td><td class="small muted">'+fmtDate(String(p.updated).slice(0,10))+'</td></tr>'; }).join('')+
+  P.map(function(p){ return '<tr data-open="'+esc(p.id)+'"><td><b>'+esc(title(p))+'</b>'+(typeOf(p)!=='client'?'<span class="tbadge">'+esc(typeOf(p))+'</span>':'')+'<div class="muted small">'+esc([p.contactName,p.email].filter(Boolean).join(' · '))+'</div></td><td>'+pill(p.stage)+'</td><td class="small">'+esc(p.service||'')+'</td><td>'+(num(p.value)?money(p.value):'')+'</td><td class="small">'+esc(p.nextStep||'')+(p.nextDate?'<div class="muted">'+fmtDate(p.nextDate)+'</div>':'')+'</td><td class="small">'+fmtDate(p.deliveryDue)+'</td><td class="small muted">'+fmtDate(String(p.updated).slice(0,10))+'</td></tr>'; }).join('')+
   '</tbody></table></div>':'<div class="card"><p class="empty">'+(S.q?'Nothing matches “'+esc(S.q)+'”.':'No projects in this view yet.')+'</p></div>');
 }
 
@@ -568,7 +658,7 @@ function drawDrawer(){
   el.innerHTML='<div class="panel" role="dialog" aria-label="Project"><div class="dhead"><div class="row1"><h2>'+esc(title(p))+'</h2><select id="dstage">'+STAGES.map(function(s){ return '<option value="'+s.k+'"'+(p.stage===s.k?' selected':'')+'>'+s.label+'</option>'; }).join('')+'</select><button class="x" id="dclose" aria-label="Close">×</button></div>'+
     '<div class="dtabs">'+tabs.map(function(t){ return '<button data-t="'+t[0]+'"'+(D.tab===t[0]?' class="on"':'')+'>'+esc(t[1])+'</button>'; }).join('')+'</div></div>'+
     '<div class="dbody" id="dbody">'+tabBody()+'</div>'+
-    '<div class="dfoot"><span class="state" id="dstate">All changes saved</span><button class="btn ghost sm" id="dspec">Spec sheet</button><button class="btn" id="dsave" disabled>Save</button></div></div>';
+    '<div class="dfoot"><span class="state" id="dstate">All changes saved</span><button class="btn ghost sm" id="dspec">Spec / handoff</button><button class="btn" id="dsave" disabled>Save</button></div></div>';
   el.classList.remove('hidden'); document.body.style.overflow='hidden';
   setDirty(D.dirty);
   el.onclick=function(e){ if(e.target===el) closeDrawer(); };
@@ -576,7 +666,9 @@ function drawDrawer(){
   $('#dsave').onclick=saveDraft;
   $('#dspec').onclick=function(){ openSpec(D.draft); };
   $('#dstage').onchange=function(){
-    var s=this.value; D.draft.stage=s;
+    var s=this.value, sel=this;
+    if(s==='closed'){ askCloseReason(D.draft, function(r){ D.draft.stage='closed'; D.draft.closedReason=r; setDirty(true); drawDrawer(); }); sel.value=D.draft.stage; return; }
+    D.draft.stage=s;
     if(s==='contract' && !D.draft.contractDate) D.draft.contractDate=todayStr();
     if(s==='live' && !D.draft.deliveredDate) D.draft.deliveredDate=todayStr();
     setDirty(true); if(D.tab==='deal') drawDrawer();
@@ -591,18 +683,36 @@ function tabBody(){
     F('name','Client / project name','text',{ph:'e.g. Eagle Trace HOA site'})+F('org','Organization','text')+
     F('contactName','Contact name','text')+F('email','Email','email')+F('phone','Phone','tel')+F('tags','Tags','text',{ph:'comma separated'})+
     F('service','Service','select',{options:SERVICES})+F('source','Source','select',{options:SOURCES})+
+    '<label class="f"><span>Type</span><select data-k="type">'+TYPES.map(function(t){ return '<option value="'+t.k+'"'+(typeOf(p)===t.k?' selected':'')+'>'+t.label+'</option>'; }).join('')+'</select><span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">Dashboard “Clients” view counts only Client projects.</span></label>'+
+    '<label class="f"><span>Last contact</span><input type="text" value="'+esc(p.lastContact?fmtDate(p.lastContact)+' ('+rel(p.lastContact)+')':'No email synced yet')+'" disabled><span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">From email sync with this project’s email address.</span></label>'+
+    (p.stage==='closed'?F('closedReason','Why closed','select',{options:CLOSE_REASONS}):'')+
     '</div></div><div class="section"><h3>Next step</h3><div class="grid">'+
     F('nextStep','What happens next','text',{ph:'e.g. Send proposal'})+F('nextDate','By when','date')+
     '</div></div><div class="section"><h3>Scope</h3><div class="grid">'+
     F('scope','What we’re building','textarea',{cls:'span3',rows:5,ph:'Pages, features, who uses it, what’s out of scope…'})+
     F('notes','Scratch notes','textarea',{cls:'span3',rows:5,ph:'Running notes. For dated entries use Notes & activity.'})+
-    '</div></div><div class="section"><button class="btn danger sm" id="delProj">Delete project</button></div>';
+    '</div></div>'+checklistHtml(p)+
+    '<div class="section"><h3>Portfolio</h3><div class="grid">'+
+    F('portfolioConsent','Client consented to anonymized portfolio use','select',{options:['Yes','No','Not asked']})+
+    F('portfolioReady','Screenshots cleaned & ready','select',{options:['yes','no']})+
+    '</div><p class="hint">Strip names, companies and anything confidential before marking ready.</p></div>'+
+    '<div class="section"><button class="btn danger sm" id="delProj">Delete project</button></div>';
 
   if(D.tab==='deal'){
-    var bal=num(p.value)-num(p.paid), d=dayDiff(p.deliveryDue);
+    var pays=paymentsFor(p.id), paid=paidFor(p), bal=num(p.value)-paid, d=dayDiff(p.deliveryDue);
     return '<div class="section"><h3>Money</h3><div class="grid">'+
-      F('value','Contract value ($)','money')+F('deposit','Deposit ($)','money')+F('paid','Paid to date ($)','money')+F('monthly','Recurring ($/mo)','money',{hint:'Hosting / care plan, if any'})+
-      '</div><div class="calc"><span>Balance due: <b>'+money(Math.max(0,bal))+'</b></span>'+(num(p.value)?'<span>Collected: <b>'+Math.round(100*num(p.paid)/num(p.value))+'%</b></span>':'')+'</div></div>'+
+      F('value','Contract value ($)','money')+F('deposit','Deposit ($)','money')+
+      (pays.length?'<label class="f"><span>Paid to date</span><input type="text" value="'+money(paid)+'" disabled><span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">Total of the payments below.</span></label>':F('paid','Paid to date ($)','money',{hint:'Or log payments below'}))+
+      F('monthly','Recurring ($/mo)','money',{hint:'Hosting / care plan, if any'})+
+      '</div><div class="calc"><span>Balance due: <b>'+money(Math.max(0,bal))+'</b></span>'+(num(p.value)?'<span>Collected: <b>'+Math.round(100*paid/num(p.value))+'%</b></span>':'')+timeStats(p)+'</div></div>'+
+      '<div class="section card"><h3>Payments</h3><div class="grid three" style="margin-top:10px">'+
+      '<label class="f">Amount ($)<input type="number" step="0.01" min="0" inputmode="decimal" id="payAmt"></label>'+
+      '<label class="f">Date<input type="date" id="payDate" value="'+todayStr()+'"></label>'+
+      '<label class="f">Method<select id="payMethod">'+PAY_METHODS.map(function(m){ return '<option>'+m+'</option>'; }).join('')+'</select></label>'+
+      '<label class="f">Invoice #<input type="text" id="payInv" placeholder="HC-2026-01"></label>'+
+      '<label class="f span2">Note<input type="text" id="payNote" placeholder="Deposit, final, monthly…"></label></div>'+
+      '<div style="margin-top:12px"><button class="btn sm" id="payAdd">Log payment</button></div>'+
+      (pays.length?'<ul class="paylist">'+pays.map(function(x){ return '<li><span class="amt">'+money(x.amount)+'</span><span>'+fmtDate(x.date)+'<div class="muted small">'+esc([x.method,x.invoice?'Invoice '+x.invoice:'',x.note].filter(Boolean).join(' · '))+'</div></span><button class="linkbtn" data-delpay="'+esc(x.id)+'">remove</button></li>'; }).join('')+'</ul>':'<p class="empty">No payments logged yet.</p>')+'</div>'+
       '<div class="section"><h3>Dates</h3><div class="grid">'+
       F('firstContact','First contact','date')+F('consultDate','Consult','date')+
       F('contractDate','Contract executed','date')+F('deliveryDue','Delivery date (per contract)','date',{hint: p.deliveryDue && !p.deliveredDate ? (d<0? Math.abs(d)+' days past due' : rel(p.deliveryDue)) : ''})+
@@ -615,12 +725,14 @@ function tabBody(){
     F('liveUrl','Live URL','url',{ph:'https://…'})+F('adminUrl','Admin URL','url')+
     F('repoUrl','Repo','url',{ph:'https://github.com/…'})+F('sheetUrl','Backend Sheet','url')+
     F('scriptUrl','Apps Script / API URL','url')+F('domain','Domain & registrar','text',{ph:'example.com · Squarespace Domains'})+
+    F('monitor','Watch nightly (site + admin + backend)','select',{options:['yes','no'],hint:'Turn off for pages that need a sign-in, like domain-only Apps Script apps.'})+
+    '<div class="f"><span>Latest checks</span>'+(healthFor(p.id).length?healthFor(p.id).map(function(h){ return '<div class="small" style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink)"><span class="dot '+(h.ok==='no'?'bad':'ok')+'"></span> '+esc(h.kind)+' — '+esc(h.detail)+'</div>'; }).join(''):'<span class="small muted" style="text-transform:none;letter-spacing:0;font-weight:400">Not checked yet</span>')+'</div>'+
     '</div></div><div class="section"><h3>How it’s wired</h3><div class="grid">'+
     F('hosting','Hosting','text',{ph:'GitHub Pages (docs/)'})+F('backend','Backend / data','text',{ph:'Google Sheet + Apps Script'})+
     F('auth','Admin access','text',{ph:'Passcode in Script Properties'})+F('integrations','Integrations','text',{ph:'FormSubmit, Calendly, ESPN API…'})+
     F('accounts','Accounts & ownership','textarea',{cls:'span3',rows:3,ph:'Who owns the Google account, GitHub, domain, etc.'})+
     '</div></div><div class="section"><h3 style="display:flex;justify-content:space-between;align-items:center">Configuration notes <span><button class="btn ghost sm" id="tplBtn">Insert Site Kit outline</button> <button class="btn ghost sm" id="mdCopy">Copy as Markdown</button></span></h3>'+
-    F('architecture','','textarea',{code:true,rows:16,ph:'Markdown. Tabs, config files, deploy steps, gotchas, how to make common changes…'})+'</div>';
+    F('architecture','','textarea',{code:true,rows:16,ph:'Markdown. Tabs, config files, deploy steps, gotchas, how to make common changes… Put anything the client shouldn’t see under a heading with “Internal” in it.'})+'</div>';
 
   if(D.tab==='files'){
     var fl=filesFor(p.id).sort(function(a,b){ return String(b.ts).localeCompare(String(a.ts)); });
@@ -630,6 +742,7 @@ function tabBody(){
       '<label class="f span2">File<input type="file" id="upFile" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.heic,.txt,.md,.xlsx,.csv"></label></div>'+
       '<div style="display:flex;gap:10px;margin-top:14px;align-items:center;flex-wrap:wrap"><button class="btn" id="upBtn">Upload to private Drive folder</button><span class="muted small">or</span><button class="linkbtn" id="linkBtn">add a link to an existing doc</button></div>'+
       '<p class="hint">Files go to your private “Herd Co. Operations — Contracts & Files” Drive folder. Only your Google account can open them.</p></div>'+
+      '<div class="section card"><h3>Contract</h3><p class="hint" style="margin-top:4px">Fills your agreement template with this project’s client, scope, price, deposit and delivery date, saved as a Google Doc to review, send and sign.</p><div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button class="btn sm" id="genContract">Generate contract draft</button>'+(S.settings.contractTemplateUrl?'<a class="small" href="'+esc(S.settings.contractTemplateUrl)+'" target="_blank" rel="noopener">Edit template</a>':'<span class="small muted">No template yet — set one in Settings.</span>')+'</div></div>'+
       '<div class="section"><h3>On file</h3>'+(fl.length?'<ul class="files">'+fl.map(function(f){ var ext=f.mime==='link'?'LINK':(String(f.name).split('.').pop()||'').slice(0,4).toUpperCase(); return '<li><span class="ic">'+esc(ext)+'</span><span><span class="nm">'+esc(f.name)+'</span><div class="muted small">'+esc(f.kind)+(f.date?' · '+fmtDate(f.date):'')+(f.size?' · '+Math.max(1,Math.round(num(f.size)/1024))+' KB':'')+'</div></span><span class="acts">'+link(f.url,'Open')+'<button class="linkbtn" style="color:var(--red)" data-delfile="'+esc(f.id)+'">Remove</button></span></li>'; }).join('')+'</ul>':'<p class="empty">Nothing on file yet.</p>')+'</div>';
   }
 
@@ -647,7 +760,52 @@ function tabBody(){
   return '';
 }
 
+function checklistHtml(p){
+  var c=checklistOf(p), mins=c.reduce(function(t,x){ return t+num(x.min); },0), done=c.filter(function(x){ return x.done; }).length;
+  return '<div class="section"><h3 style="display:flex;justify-content:space-between;align-items:center">Build checklist <span class="small muted" style="font-family:Barlow;text-transform:none;letter-spacing:0">'+done+'/'+c.length+' done · '+(mins?(mins/60).toFixed(1)+' h logged':'no time logged')+'</span></h3>'+
+    '<div class="bar"><span style="width:'+(c.length?Math.round(100*done/c.length):0)+'%"></span></div>'+
+    '<table class="chk" id="chk"><tbody>'+c.map(function(x,i){ return '<tr class="'+(x.done?'done':'')+'" data-i="'+i+'"><td style="width:28px"><input type="checkbox" data-c="done"'+(x.done?' checked':'')+' aria-label="Done"></td><td><input type="text" data-c="s" value="'+esc(x.s)+'"></td><td style="width:100px"><input type="number" min="0" step="5" data-c="min" value="'+esc(x.min)+'" placeholder="min" aria-label="Minutes"></td><td style="width:150px"><input type="date" data-c="date" value="'+esc(x.date)+'" aria-label="Date"></td><td style="width:30px"><button class="linkbtn" data-c="rm" style="color:var(--muted)" aria-label="Remove step">×</button></td></tr>'; }).join('')+'</tbody></table>'+
+    '<button class="linkbtn small" id="chkAdd" style="margin-top:6px">+ Add step</button><p class="hint">Log minutes per step to see your effective hourly rate on the Deal tab.</p></div>';
+}
+function timeStats(p){
+  var mins=checklistOf(p).reduce(function(t,x){ return t+num(x.min); },0);
+  if(!mins) return '';
+  var h=mins/60, v=num(p.value);
+  return '<span>Time: <b>'+h.toFixed(1)+' h</b></span>'+(v?'<span>Effective rate: <b>'+money(Math.round(v/h))+'/h</b></span>':'');
+}
+function wireChecklist(){
+  var t=$('#chk'); if(!t) return;
+  var save=function(c){ D.draft.checklist=JSON.stringify(c); setDirty(true); };
+  t.addEventListener('input',function(e){
+    var el=e.target, tr=el.closest('tr'); if(!tr||!el.dataset.c) return;
+    var c=checklistOf(D.draft), i=+tr.dataset.i;
+    if(el.dataset.c==='done'){ c[i].done=el.checked; if(el.checked&&!c[i].date) c[i].date=todayStr(); save(c); var keep=D.tab; drawDrawer(); D.tab=keep; return; }
+    c[i][el.dataset.c]=el.value; save(c);
+  });
+  t.addEventListener('click',function(e){ var b=e.target.closest('[data-c=rm]'); if(!b) return; var c=checklistOf(D.draft); c.splice(+b.closest('tr').dataset.i,1); if(!c.length) c=[{s:'New step',done:false,min:'',date:''}]; save(c); drawDrawer(); });
+  $('#chkAdd').onclick=function(){ var c=checklistOf(D.draft); c.push({s:'',done:false,min:'',date:''}); save(c); drawDrawer(); var ins=$$('#chk input[data-c=s]'); ins[ins.length-1].focus(); };
+}
 function wireTab(){
+  wireChecklist();
+  var pa=$('#payAdd'); if(pa) pa.onclick=function(){
+    var amt=$('#payAmt').value; if(!(num(amt)>0)){ $('#payAmt').focus(); toast('Enter an amount',true); return; }
+    pa.disabled=true;
+    api('addPayment',{payment:{projectId:D.id, amount:amt, date:$('#payDate').value, method:$('#payMethod').value, invoice:$('#payInv').value.trim(), note:$('#payNote').value.trim()}}).then(function(j){
+      S.payments.push(j.payment); S.log.push({id:'tmp'+Date.now(), projectId:D.id, ts:new Date().toISOString(), type:'payment', text:'Payment received: '+money(amt)});
+      drawDrawer(); render(); toast('Payment logged');
+    }).catch(function(e){ pa.disabled=false; if(e.message!=='signed out') toast(e.message,true); });
+  };
+  $$('[data-delpay]').forEach(function(b){ b.onclick=function(){
+    if(!confirm('Remove this payment?')) return;
+    api('deletePayment',{id:b.dataset.delpay}).then(function(){ S.payments=S.payments.filter(function(x){ return x.id!==b.dataset.delpay; }); drawDrawer(); render(); }).catch(function(e){ if(e.message!=='signed out') toast(e.message,true); });
+  }; });
+  var gc=$('#genContract'); if(gc) gc.onclick=function(){
+    if(!S.settings.contractTemplateId){ openSettings(); toast('Set a contract template first',true); return; }
+    if(D.dirty){ toast('Save your changes first so the contract uses them',true); return; }
+    gc.disabled=true; gc.textContent='Generating…';
+    api('generateContract',{projectId:D.id}).then(function(j){ S.files.push(j.file); drawDrawer(); toast('Contract draft created'); window.open(j.file.url,'_blank','noopener'); })
+      .catch(function(e){ gc.disabled=false; gc.textContent='Generate contract draft'; if(e.message!=='signed out') toast(e.message,true); });
+  };
   $$('#dbody [data-k]').forEach(function(i){
     var h=function(){ D.draft[i.dataset.k]=i.value; setDirty(true); if(i.dataset.k==='name'){ $('.dhead h2').textContent=title(D.draft); } };
     i.addEventListener('input',h); i.addEventListener('change',h);
@@ -733,31 +891,48 @@ function addLinkModal(){
 }
 
 /* ================= spec sheet ================= */
-function specRows(p){
+function stripInternal(md){
+  var out=[], skip=0;
+  String(md||'').split('\n').forEach(function(l){
+    var m=l.match(/^(#{1,6})\s+(.*)/);
+    if(m){ if(skip && m[1].length<=skip) skip=0; if(!skip && /internal/i.test(m[2])){ skip=m[1].length; return; } }
+    if(!skip) out.push(l);
+  });
+  return out.join('\n');
+}
+function specRows(p, mode){
+  if(mode==='handoff') return [['Project',[p.name,p.org&&p.org!==p.name?p.org:''].filter(Boolean).join(' — ')],['Delivered',fmtDate(p.deliveredDate||p.deliveryDue)],
+    ['Your site',p.liveUrl],['Admin page',p.adminUrl],['Code (GitHub)',p.repoUrl],['Your data (Google Sheet)',p.sheetUrl],['Domain',p.domain],['Hosting',p.hosting],['Backend / data',p.backend],
+    ['Admin access',p.auth],['Connected services',p.integrations],['Accounts you own',p.accounts],['Renews',fmtDate(p.renewalDate)],['Built by','The Herd Co. · levi@herdcoindy.com · herdcoindy.com']]
+    .filter(function(r){ return r[1] && String(r[1]).trim(); });
   return [['Client',[p.name,p.org&&p.org!==p.name?p.org:''].filter(Boolean).join(' — ')],['Contact',[p.contactName,p.email,p.phone].filter(Boolean).join(' · ')],['Service',p.service],['Status',(STAGE[p.stage]||{}).label],
     ['Contract executed',fmtDate(p.contractDate)],['Delivery',fmtDate(p.deliveredDate||p.deliveryDue)+(p.deliveredDate?' (delivered)':p.deliveryDue?' (due)':'')],
     ['Live URL',p.liveUrl],['Admin URL',p.adminUrl],['Repo',p.repoUrl],['Backend Sheet',p.sheetUrl],['Apps Script / API',p.scriptUrl],['Domain',p.domain],
     ['Hosting',p.hosting],['Backend / data',p.backend],['Admin access',p.auth],['Integrations',p.integrations],['Accounts & ownership',p.accounts],['Renews',fmtDate(p.renewalDate)]]
     .filter(function(r){ return r[1] && String(r[1]).trim(); });
 }
-function openSpec(p){
+function openSpec(p, mode){
   if(!p) return;
-  var rows=specRows(p);
-  $('#spec').innerHTML='<div class="sbar"><b>Spec sheet</b><span class="sp"></span><button class="btn light sm" id="spCopy" style="background:#fff;color:var(--green)">Copy as Markdown</button><button class="btn light sm" id="spPrint" style="background:#fff;color:var(--green)">Print / Save PDF</button><button class="btn ghost sm" id="spClose" style="color:#fff;border-color:rgba(255,255,255,.4)">Close</button></div>'+
-    '<div class="doc"><header><div><p class="muted small" style="margin:0 0 6px;text-transform:uppercase;letter-spacing:.14em;font-weight:600">Build architecture</p><h1>'+esc(title(p))+'</h1><p class="muted small" style="margin:6px 0 0">Updated '+fmtDate(String(p.updated||'').slice(0,10)||todayStr())+'</p></div><img src="../assets/logo-horizontal.png" alt="The Herd Co."></header>'+
+  mode=mode||'internal';
+  var rows=specRows(p, mode), arch=mode==='handoff'?stripInternal(p.architecture):p.architecture;
+  $('#spec').innerHTML='<div class="sbar"><span class="seg"><button data-m="internal"'+(mode==='internal'?' class="on"':'')+'>Internal spec</button><button data-m="handoff"'+(mode==='handoff'?' class="on"':'')+'>Client handoff</button></span><span class="sp"></span><button class="btn light sm" id="spCopy" style="background:#fff;color:var(--green)">Copy as Markdown</button><button class="btn light sm" id="spPrint" style="background:#fff;color:var(--green)">Print / Save PDF</button><button class="btn ghost sm" id="spClose" style="color:#fff;border-color:rgba(255,255,255,.4)">Close</button></div>'+
+    '<div class="doc"><header><div><p class="muted small" style="margin:0 0 6px;text-transform:uppercase;letter-spacing:.14em;font-weight:600">'+(mode==='handoff'?'Handoff guide':'Build architecture')+'</p><h1>'+esc(title(p))+'</h1><p class="muted small" style="margin:6px 0 0">Updated '+fmtDate(String(p.updated||'').slice(0,10)||todayStr())+'</p></div><img src="../assets/logo-horizontal.png" alt="The Herd Co."></header>'+
     '<dl>'+rows.map(function(r){ var v=r[1]; var isUrl=/^https?:\/\//.test(String(v)); return '<dt>'+esc(r[0])+'</dt><dd>'+(isUrl?link(v):esc(v))+'</dd>'; }).join('')+'</dl>'+
     (p.scope?'<h2 style="margin:6px 0 8px">Scope</h2><div class="md">'+md(p.scope)+'</div>':'')+
-    (p.architecture?'<h2 style="margin:18px 0 8px">Configuration</h2><div class="md">'+md(p.architecture)+'</div>':'<p class="muted">No configuration notes yet — add them on the Architecture tab.</p>')+'</div>';
+    (arch&&arch.trim()?'<h2 style="margin:18px 0 8px">'+(mode==='handoff'?'How it works':'Configuration')+'</h2><div class="md">'+md(arch)+'</div>':'<p class="muted">No configuration notes yet — add them on the Architecture tab.</p>')+
+    (mode==='handoff'?'<p class="hint" style="margin-top:28px">Sections whose heading includes “Internal” are left out of this version.</p>':'')+'</div>';
+  $$('#spec .seg button').forEach(function(b){ b.onclick=function(){ openSpec(p, b.dataset.m); }; });
   $('#spec').classList.remove('hidden');
   $('#spClose').onclick=function(){ $('#spec').classList.add('hidden'); };
   $('#spPrint').onclick=function(){ window.print(); };
-  $('#spCopy').onclick=function(){ copy(specMarkdown(p)); };
+  $('#spCopy').onclick=function(){ copy(specMarkdown(p, mode)); };
 }
-function specMarkdown(p){
-  var out=['# '+title(p)+' — Architecture',''];
-  specRows(p).forEach(function(r){ out.push('- **'+r[0]+':** '+r[1]); });
+function specMarkdown(p, mode){
+  var h=mode==='handoff', arch=h?stripInternal(p.architecture):p.architecture;
+  var out=['# '+title(p)+(h?' — Handoff guide':' — Architecture'),''];
+  specRows(p, mode).forEach(function(r){ out.push('- **'+r[0]+':** '+r[1]); });
   if(p.scope) out.push('','## Scope','',p.scope);
-  if(p.architecture) out.push('','## Configuration','',p.architecture);
+  if(arch&&arch.trim()) out.push('',h?'## How it works':'## Configuration','',arch);
   return out.join('\n');
 }
 function copy(t){
@@ -795,26 +970,89 @@ function md(src){
 function modal(html){ var m=$('#modal'); m.innerHTML='<div class="box">'+html+'</div>'; m.classList.remove('hidden'); m.onclick=function(e){ if(e.target===m||e.target.hasAttribute('data-close')) closeModal(); }; }
 function closeModal(){ $('#modal').classList.add('hidden'); $('#modal').innerHTML=''; }
 
-$('#newBtn').onclick=function(){
-  modal('<h2>New project</h2><div class="grid">'+
+function parseConsult(t){
+  var out={}, m;
+  if((m=t.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i))) out.email=m[0];
+  if((m=t.match(/(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/))) out.phone=m[0].trim();
+  var urls=t.match(/https?:\/\/[^\s)>,]+|\b[a-z0-9-]+\.(com|org|net|church|io|co|us|app)\b(\/[^\s)>,]*)?/gi)||[];
+  urls=urls.filter(function(u){ return !(out.email && out.email.indexOf(u)>=0); });
+  if(urls.length) out.liveUrl=urls[0];
+  var lines=t.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+  lines.forEach(function(l){
+    var kv=l.match(/^(name|contact|client|org|organization|group|business|company|service|need|budget|price|deadline|due|date)\s*[:\-–]\s*(.+)$/i); if(!kv) return;
+    var k=kv[1].toLowerCase(), v=kv[2].trim();
+    if(k==='name'||k==='contact') out.contactName=out.contactName||v;
+    else if(k==='client'||k==='org'||k==='organization'||k==='group'||k==='business'||k==='company') out.org=out.org||v;
+    else if(k==='service'||k==='need') out.service=SERVICES.filter(function(sv){ return v.toLowerCase().indexOf(sv.toLowerCase().split(' ')[0])>=0; })[0]||out.service;
+    else if(k==='budget'||k==='price'){ var n=v.replace(/[^0-9.]/g,''); if(n) out.value=n; }
+    else if(k==='deadline'||k==='due'||k==='date'){ var d=new Date(v); if(!isNaN(d)) out.deliveryDue=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  });
+  return out;
+}
+function openNew(preset){
+  preset=preset||{};
+  modal('<h2>'+(preset.stage==='lead'?'New lead':'New project')+'</h2><div class="grid">'+
     '<label class="f span3">Client / project name<input type="text" id="nName" placeholder="e.g. Pleasant Grove Dads Club site"></label>'+
     '<label class="f">Contact name<input type="text" id="nContact"></label><label class="f">Email<input type="email" id="nEmail"></label>'+
-    '<label class="f">Stage<select id="nStage">'+STAGES.map(function(s){ return '<option value="'+s.k+'">'+s.label+'</option>'; }).join('')+'</select></label>'+
+    '<label class="f">Stage<select id="nStage">'+STAGES.map(function(s){ return '<option value="'+s.k+'"'+(preset.stage===s.k?' selected':'')+'>'+s.label+'</option>'; }).join('')+'</select></label>'+
+    '<label class="f">Type<select id="nType">'+TYPES.map(function(t){ return '<option value="'+t.k+'">'+t.label+'</option>'; }).join('')+'</select></label>'+
     '<label class="f">Service<select id="nService"><option></option>'+SERVICES.map(function(s){ return '<option>'+s+'</option>'; }).join('')+'</select></label>'+
     '<label class="f">Source<select id="nSource"><option></option>'+SOURCES.map(function(s){ return '<option>'+s+'</option>'; }).join('')+'</select></label>'+
-    '<label class="f">Next step date<input type="date" id="nNext" value="'+addDays(todayStr(),2)+'"></label>'+
-    '</div><p class="err" id="mErr"></p><div class="acts"><button class="btn ghost" data-close>Cancel</button><button class="btn" id="nSave">Create</button></div>');
+    '<label class="f span3">Next step date<input type="date" id="nNext" value="'+addDays(todayStr(),2)+'"></label>'+
+    '<label class="f span3">Consult notes (optional)<textarea id="nNotes" rows="5" placeholder="Paste notes or a form submission. Email, phone, a URL, and lines like “Org: …”, “Budget: …”, “Deadline: …” are picked up automatically."></textarea></label>'+
+    '</div><p class="hint" id="nParsed"></p><p class="err" id="mErr"></p><div class="acts"><button class="btn ghost" data-close>Cancel</button><button class="btn" id="nSave">Create</button></div>');
   $('#nName').focus();
+  $('#nNotes').oninput=function(){
+    var x=parseConsult(this.value), got=[];
+    if(x.email){ if(!$('#nEmail').value) $('#nEmail').value=x.email; got.push('email'); }
+    if(x.contactName){ if(!$('#nContact').value) $('#nContact').value=x.contactName; got.push('contact'); }
+    if(x.org){ if(!$('#nName').value) $('#nName').value=x.org; got.push('organization'); }
+    if(x.service){ $('#nService').value=x.service; got.push('service'); }
+    if(x.phone) got.push('phone'); if(x.liveUrl) got.push('URL'); if(x.value) got.push('budget'); if(x.deliveryDue) got.push('deadline');
+    $('#nParsed').textContent=got.length?'Picked up: '+got.join(', '):'';
+  };
   $('#nSave').onclick=function(){
     var name=$('#nName').value.trim(); if(!name){ $('#mErr').textContent='Give it a name.'; return; }
-    var stage=$('#nStage').value;
-    var p={name:name, contactName:$('#nContact').value.trim(), email:$('#nEmail').value.trim(), stage:stage, service:$('#nService').value, source:$('#nSource').value, firstContact:todayStr(), nextDate:$('#nNext').value, nextStep: stage==='lead'?'Reply and book 30-min consult':''};
+    var stage=$('#nStage').value, notes=$('#nNotes').value.trim(), x=notes?parseConsult(notes):{};
+    var p={name:name, contactName:$('#nContact').value.trim(), email:$('#nEmail').value.trim(), stage:stage, type:$('#nType').value, service:$('#nService').value, source:$('#nSource').value, firstContact:todayStr(), nextDate:$('#nNext').value, nextStep: stage==='lead'?'Reply and book 30-min consult':''};
+    if(x.org && x.org!==name) p.org=x.org;
+    if(x.phone) p.phone=x.phone; if(x.liveUrl) p.liveUrl=x.liveUrl; if(x.value) p.value=x.value; if(x.deliveryDue) p.deliveryDue=x.deliveryDue;
+    if(notes){ p.scope=notes; if(stage==='lead'||stage==='discussion') p.consultDate=todayStr(); }
     if(stage==='contract') p.contractDate=todayStr();
-    this.disabled=true;
-    api('saveProject',{project:p}).then(function(j){ S.projects.push(j.project); S.log.push({id:'tmp'+Date.now(), projectId:j.project.id, ts:new Date().toISOString(), type:'stage', text:'created→'+j.project.stage}); closeModal(); render(); openProject(j.project.id); })
-      .catch(function(e){ $('#nSave').disabled=false; if(e.message!=='signed out') $('#mErr').textContent=e.message; });
+    var btn=this; btn.disabled=true;
+    api('saveProject',{project:p}).then(function(j){
+      S.projects.push(j.project); S.log.push({id:'tmp'+Date.now(), projectId:j.project.id, ts:new Date().toISOString(), type:'stage', text:'created→'+j.project.stage});
+      var after=notes?api('addLog',{projectId:j.project.id, type:'meeting', text:'Consult notes:\n'+notes}).then(function(r){ S.log.push(r.entry); }):Promise.resolve();
+      return after.then(function(){ closeModal(); render(); openProject(j.project.id); });
+    }).catch(function(e){ btn.disabled=false; if(e.message!=='signed out') $('#mErr').textContent=e.message; });
   };
-};
+}
+$('#newBtn').onclick=function(){ openNew(); };
+$('#fab').onclick=function(){ openNew({stage:'lead'}); };
+
+function openSettings(){
+  $('#menuPop').classList.add('hidden');
+  var st=S.settings||{};
+  modal('<h2>Settings &amp; automations</h2>'+
+    '<div class="section"><h3>Automations</h3><p class="hint" style="margin-top:4px">'+(st.automations?'<span class="dot ok"></span> On: site checks + client email sync nightly at 3 AM; digest Mondays at 7 AM.':'<span class="dot"></span> Off.')+'</p>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn sm" id="stTrig">'+(st.automations?'Reinstall automations':'Turn on automations')+'</button><button class="btn ghost sm" id="stHealth">Run site checks</button><button class="btn ghost sm" id="stMail">Sync client email</button><button class="btn ghost sm" id="stDigest">Send digest now</button></div>'+
+    '<p class="hint">Email sync reads only threads with each Client project’s email address and logs subject + first lines. Last sync: '+(st.lastEmailSync?fmtTs(st.lastEmailSync):'never')+'.</p></div>'+
+    '<div class="grid"><label class="f">Send digest + alerts to<input type="email" id="stTo" value="'+esc(st.digestTo||'')+'"></label>'+
+    '<label class="f">“Gone quiet” after (days)<input type="number" min="1" id="stStale" value="'+esc(st.staleDays||14)+'"></label>'+
+    '<label class="f span3">Contract template (Google Doc link)<input type="url" id="stTpl" value="'+esc(st.contractTemplateUrl||'')+'" placeholder="https://docs.google.com/document/d/…"></label></div>'+
+    '<p class="hint">Template placeholders: {{provider}} {{client}} {{org}} {{contactName}} {{email}} {{phone}} {{service}} {{scope}} {{value}} {{deposit}} {{balance}} {{monthly}} {{deliveryDue}} {{date}} {{liveUrl}} {{domain}}'+
+    (st.contractTemplateUrl?' · <a href="'+esc(st.contractTemplateUrl)+'" target="_blank" rel="noopener">Open template</a>':' · <button class="linkbtn" id="stMakeTpl">Create a starter template</button>')+'</p>'+
+    '<p class="err" id="mErr"></p><div class="acts"><button class="btn ghost" data-close>Close</button><button class="btn" id="stSave">Save settings</button></div>');
+  var busy=function(b,t){ b.disabled=true; b.dataset.t=b.textContent; b.textContent=t; }, done=function(b){ b.disabled=false; b.textContent=b.dataset.t; };
+  var fail=function(b){ return function(e){ done(b); if(e.message!=='signed out') $('#mErr').textContent=e.message; }; };
+  $('#stTrig').onclick=function(){ var b=this; busy(b,'Turning on…'); api('installTriggers').then(function(j){ S.settings=j.settings; openSettings(); toast('Automations on'); }).catch(fail(b)); };
+  $('#stHealth').onclick=function(){ var b=this; busy(b,'Checking…'); api('runHealth').then(function(j){ S.health=j.health||[]; S.settings.lastHealth=new Date().toISOString(); done(b); render(); var bad=S.health.filter(function(h){ return h.ok==='no'; }).length; toast(bad?bad+' failing — see dashboard':'All '+S.health.length+' passing', !!bad); }).catch(fail(b)); };
+  $('#stMail').onclick=function(){ var b=this; busy(b,'Syncing…'); api('syncEmail').then(function(j){ S.log=j.log||S.log; S.projects=j.projects||S.projects; S.settings.lastEmailSync=new Date().toISOString(); done(b); render(); toast(j.added+' new email'+(j.added===1?'':'s')+' logged'); }).catch(fail(b)); };
+  $('#stDigest').onclick=function(){ var b=this; busy(b,'Sending…'); api('sendDigest').then(function(){ done(b); toast('Digest sent to '+(S.settings.digestTo||'you')); }).catch(fail(b)); };
+  var mk=$('#stMakeTpl'); if(mk) mk.onclick=function(){ mk.textContent='Creating…'; api('createContractTemplate').then(function(j){ S.settings=j.settings; openSettings(); window.open(j.settings.contractTemplateUrl,'_blank','noopener'); toast('Template created — paste your agreement into it'); }).catch(fail(mk)); };
+  $('#stSave').onclick=function(){ var b=this; busy(b,'Saving…'); api('saveSettings',{settings:{digestTo:$('#stTo').value, staleDays:$('#stStale').value, contractTemplateId:$('#stTpl').value}}).then(function(j){ S.settings=Object.assign(S.settings,j.settings); closeModal(); render(); toast('Settings saved'); }).catch(fail(b)); };
+}
+$('#settingsBtn').onclick=openSettings;
 
 $('#menuBtn').onclick=function(e){ e.stopPropagation(); $('#menuPop').classList.toggle('hidden'); };
 document.addEventListener('click',function(e){ if(!e.target.closest('.menu')) $('#menuPop').classList.add('hidden'); });

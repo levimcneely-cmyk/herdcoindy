@@ -25,6 +25,30 @@ Google Sheet owned by the Herd Co. Google account. This Apps Script checks the p
 - **10 wrong passwords** trigger a 15-minute lockout.
 - Sessions last 12 hours, or 30 days if you tick "Keep me signed in on this device".
 
+## Upgrading to v2 (automations, payments, contracts)
+
+1. In the Sheet: **Extensions → Apps Script**, replace all of `Code.gs` with the new version, and save.
+2. Run `setup` once. Google asks for new permissions (Gmail read, send email, Docs, external requests). Approve them.
+   This adds the `Payments` and `Health` tabs and new Project columns. It also sorts existing projects into Client / Internal / Personal.
+3. **Deploy → Manage deployments → ✏️ → Version: New version → Deploy.** The URL stays the same.
+4. In /admin, open **⋯ → Settings & automations** and click **Turn on automations**.
+   Then either **Create a starter template** or paste the link to your own agreement Doc.
+
+### What runs on its own
+| When | What |
+|---|---|
+| Nightly, 3 AM | Checks every Live / Under-contract project's site, admin and backend URL. Emails you when something goes down or comes back up. Then logs new emails with each Client's address. |
+| Mondays, 7 AM | Week-ahead digest: sites down, follow-ups, deliveries, renewals, clients gone quiet, balances due |
+
+To skip monitoring for a project (for example, an app only your client's domain can open), set **Watch nightly = no** on its Architecture tab.
+
+### Contract template placeholders
+`{{provider}} {{client}} {{org}} {{contactName}} {{email}} {{phone}} {{service}} {{scope}} {{value}} {{deposit}} {{balance}} {{monthly}} {{deliveryDue}} {{date}} {{liveUrl}} {{domain}}`.
+**Generate contract draft** (Contracts & files tab) copies the template into the private contracts folder, fills it in, and opens it.
+
+### Client handoff guide
+**Spec / handoff → Client handoff** leaves out money, contacts and anything under an architecture heading that contains "Internal".
+
 ## What's where
 
 | Tab / place | Holds |
@@ -32,6 +56,8 @@ Google Sheet owned by the Herd Co. Google account. This Apps Script checks the p
 | `Projects` | One row per client/project: stage, contact, money, dates, URLs, architecture notes |
 | `Log` | Notes, calls, emails and automatic stage-change history |
 | `Files` | Contracts and docs: kind, date, Drive link |
+| `Payments` | Each payment: date, amount, method, invoice # |
+| `Health` | Latest result for each monitored URL (rewritten each run) |
 | Drive folder | The uploaded files themselves (private to your account) |
 
 You can also edit the Sheet directly. Add columns if you like, and the app keeps them.
