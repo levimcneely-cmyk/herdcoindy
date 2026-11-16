@@ -220,8 +220,8 @@
   .paylist li{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:6px;font-size:.95rem}
   .paylist .amt{font-weight:700;color:var(--green);min-width:90px}
   .paylist .linkbtn{margin-left:auto;color:var(--red);font-size:.85rem}
-  .bar{height:8px;background:var(--soft);border-radius:999px;overflow:hidden;margin-top:6px}
-  .bar span{display:block;height:100%;background:var(--green)}
+  .pbar{display:block;height:8px;background:var(--soft);border-radius:999px;overflow:hidden;margin-top:6px}
+  .pbar span{display:block;height:100%;background:var(--green)}
   .fab{display:none;position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:35;background:var(--green);color:#fff;border:0;border-radius:999px;padding:14px 20px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:1rem}
   @media (max-width:720px){.fab{display:block} header.top .btn.light{display:none}}
   .seg{display:inline-flex;border:1px solid rgba(255,255,255,.4);border-radius:999px;overflow:hidden}
@@ -525,7 +525,7 @@ function renderDash(){
   var keys=Object.keys(src).sort(function(a,b){ return src[b].n-src[a].n; });
   var decided=C.filter(function(p){ return won(p)||p.stage==='closed'; }).length, wins=C.filter(won).length;
   var srcHtml='<div class="card" style="margin-top:18px"><h3>Where clients come from</h3>'+(keys.length?
-    '<p class="hint" style="margin-top:4px">Win rate '+(decided?Math.round(100*wins/decided)+'%':'—')+' ('+wins+' won of '+decided+' decided)</p><ul class="list">'+keys.map(function(k){ var x=src[k]; return '<li style="cursor:default;flex-direction:column;align-items:stretch;gap:2px"><span style="display:flex"><span class="nm">'+esc(k)+'</span><span class="rt">'+x.w+'/'+x.n+' won'+(x.v?' · '+money(x.v):'')+'</span></span><span class="bar"><span style="width:'+Math.round(100*x.w/x.n)+'%"></span></span></li>'; }).join('')+'</ul>'+
+    '<p class="hint" style="margin-top:4px">Win rate '+(decided?Math.round(100*wins/decided)+'%':'—')+' ('+wins+' won of '+decided+' decided)</p><ul class="list">'+keys.map(function(k){ var x=src[k]; return '<li style="cursor:default;flex-direction:column;align-items:stretch;gap:2px"><span style="display:flex"><span class="nm">'+esc(k)+'</span><span class="rt">'+x.w+'/'+x.n+' won'+(x.v?' · '+money(x.v):'')+'</span></span><span class="pbar"><span style="width:'+Math.round(100*x.w/x.n)+'%"></span></span></li>'; }).join('')+'</ul>'+
     (Object.keys(reasons).length?'<p class="hint" style="margin-top:10px">Why closed: '+Object.keys(reasons).map(function(r){ return esc(r)+' ('+reasons[r]+')'; }).join(' · ')+'</p>':'')
     :'<p class="empty">No client projects yet.</p>')+'</div>';
 
@@ -763,7 +763,7 @@ function tabBody(){
 function checklistHtml(p){
   var c=checklistOf(p), mins=c.reduce(function(t,x){ return t+num(x.min); },0), done=c.filter(function(x){ return x.done; }).length;
   return '<div class="section"><h3 style="display:flex;justify-content:space-between;align-items:center">Build checklist <span class="small muted" style="font-family:Barlow;text-transform:none;letter-spacing:0">'+done+'/'+c.length+' done · '+(mins?(mins/60).toFixed(1)+' h logged':'no time logged')+'</span></h3>'+
-    '<div class="bar"><span style="width:'+(c.length?Math.round(100*done/c.length):0)+'%"></span></div>'+
+    '<div class="pbar"><span style="width:'+(c.length?Math.round(100*done/c.length):0)+'%"></span></div>'+
     '<table class="chk" id="chk"><tbody>'+c.map(function(x,i){ return '<tr class="'+(x.done?'done':'')+'" data-i="'+i+'"><td style="width:28px"><input type="checkbox" data-c="done"'+(x.done?' checked':'')+' aria-label="Done"></td><td><input type="text" data-c="s" value="'+esc(x.s)+'"></td><td style="width:100px"><input type="number" min="0" step="5" data-c="min" value="'+esc(x.min)+'" placeholder="min" aria-label="Minutes"></td><td style="width:150px"><input type="date" data-c="date" value="'+esc(x.date)+'" aria-label="Date"></td><td style="width:30px"><button class="linkbtn" data-c="rm" style="color:var(--muted)" aria-label="Remove step">×</button></td></tr>'; }).join('')+'</tbody></table>'+
     '<button class="linkbtn small" id="chkAdd" style="margin-top:6px">+ Add step</button><p class="hint">Log minutes per step to see your effective hourly rate on the Deal tab.</p></div>';
 }
