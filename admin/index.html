@@ -347,8 +347,8 @@ function clearToken(){ try{ localStorage.removeItem(TOKEN_KEY); sessionStorage.r
 function api(action, data){
   var body = Object.assign({action:action, token:getToken()}, data||{});
   return fetch(API, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body)})
-    .then(function(r){ return r.json(); })
-    .catch(function(){ throw new Error('Could not reach the server. Check your connection.'); })
+    .catch(function(){ throw new Error('Could not reach the server. Open the backend /exec URL in a private window: it should show {"ok":true,"app":"herd-ops"}. If it asks you to sign in, set the deployment\'s access to "Anyone".'); })
+    .then(function(r){ return r.text().then(function(t){ try{ return JSON.parse(t); }catch(e){ throw new Error('The server answered, but not with data (HTTP '+r.status+'). Usually this means setup() was not run, or the deployment is out of date. Redeploy as a New version.'); } }); })
     .then(function(j){
       if(j.auth===false){ clearToken(); showLogin('Your session ended — please sign in again.'); throw new Error('signed out'); }
       if(!j.ok) throw new Error(j.error||'Something went wrong');
