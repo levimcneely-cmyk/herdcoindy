@@ -872,7 +872,7 @@ function tabBody(){
       '<div style="display:flex;gap:10px;margin-top:14px;align-items:center;flex-wrap:wrap"><button class="btn" id="upBtn">Upload to private Drive folder</button><span class="muted small">or</span><button class="linkbtn" id="linkBtn">add a link to an existing doc</button></div>'+
       '<p class="hint">Files go to your private “Herd Co. Operations — Contracts & Files” Drive folder. Only your Google account can open them.</p></div>'+
       '<div class="section card"><h3>Contract</h3><p class="hint" style="margin-top:4px">Fills your agreement template with this project’s client, scope, price, deposit and delivery date, saved as a Google Doc to review, send and sign.</p><div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button class="btn sm" id="genContract">Generate contract draft</button>'+(S.settings.contractTemplateUrl?'<a class="small" href="'+esc(S.settings.contractTemplateUrl)+'" target="_blank" rel="noopener">Edit template</a>':'<span class="small muted">No template yet — set one in Settings.</span>')+'</div></div>'+
-      '<div class="section"><h3>On file</h3>'+(fl.length?'<ul class="files">'+fl.map(function(f){ var ext=f.mime==='link'?'LINK':(String(f.name).split('.').pop()||'').slice(0,4).toUpperCase(); return '<li><span class="ic">'+esc(ext)+'</span><span><span class="nm">'+esc(f.name)+'</span><div class="muted small">'+esc(f.kind)+(f.date?' · '+fmtDate(f.date):'')+(f.size?' · '+Math.max(1,Math.round(num(f.size)/1024))+' KB':'')+'</div></span><span class="acts">'+link(f.url,'Open')+'<button class="linkbtn" style="color:var(--red)" data-delfile="'+esc(f.id)+'">Remove</button></span></li>'; }).join('')+'</ul>':'<p class="empty">Nothing on file yet.</p>')+'</div>';
+      '<div class="section"><h3>On file</h3>'+(fl.length?'<ul class="files">'+fl.map(function(f){ var ext=f.mime==='link'?'LINK':(String(f.name).split('.').pop()||'').slice(0,4).toUpperCase(); return '<li><span class="ic">'+esc(ext)+'</span><span><span class="nm">'+esc(f.name)+'</span><div class="muted small">'+esc(f.kind)+(f.date?' · '+fmtDate(f.date):'')+(f.size?' · '+Math.max(1,Math.round(num(f.size)/1024))+' KB':'')+'</div></span><span class="acts">'+(f.kind==='Contract draft'&&f.driveId?'<button class="btn sm" data-sendfile="'+esc(f.id)+'">Email to client</button>':'')+link(f.url,'Open')+'<button class="linkbtn" style="color:var(--red)" data-delfile="'+esc(f.id)+'">Remove</button></span></li>'; }).join('')+'</ul>':'<p class="empty">Nothing on file yet.</p>')+'</div>';
   }
 
   if(D.tab==='activity'){
@@ -951,6 +951,36 @@ function wireLastContact(){
       .catch(function(e){ btn.disabled=false; btn.textContent='Save contact'; if(e.message!=='signed out') toast(e.message,true); });
   };
 }
+function openSendContract(fileId){
+  var f=S.files.filter(function(x){ return x.id===fileId; })[0]; if(!f) return;
+  if(D && D.dirty){ toast('Save your changes first',true); return; }
+  var p=byId(f.projectId)||{}, first=String(p.contactName||'').trim().split(/\s+/)[0]||'there';
+  var body=['Hi '+first+',','',
+    'Thanks again for the time on the consult. Attached is the agreement for '+title(p)+', covering the scope, price and timeline we talked about.','',
+    'Give it a read, sign it, and send a signed copy back to me. A photo or scan is fine.'+(num(p.deposit)?' Once I have it and the '+money(p.deposit)+' deposit, I\'ll get started.':' Once I have it, I\'ll get started.'),'',
+    'Any questions, just reply here or text me.','','Levi','The Herd Co. · herdcoindy.com'].join('\n');
+  modal('<h2>Email the agreement</h2>'+
+    '<p class="hint" style="margin-top:-6px">Sends from levi@herdcoindy.com with the contract attached as a PDF, and saves a copy of exactly what was sent.</p>'+
+    '<div class="grid" style="margin-top:10px"><label class="f span3">To<input type="email" id="scTo" value="'+esc(p.email||'')+'" placeholder="client@example.com" multiple></label>'+
+    '<label class="f span3">Cc (optional)<input type="text" id="scCc" placeholder="another@example.com"></label>'+
+    '<label class="f span3">Subject<input type="text" id="scSubj" value="'+esc('Herd Co. agreement — '+title(p))+'"></label>'+
+    '<label class="f span3">Message<textarea id="scBody" rows="11">'+esc(body)+'</textarea></label>'+
+    '<label class="f">Follow up by<input type="date" id="scFollow" value="'+addDays(todayStr(),3)+'"></label>'+
+    '<label class="check" style="align-self:end;margin:0 0 10px"><input type="checkbox" id="scBcc" checked> Send me a copy</label></div>'+
+    '<p class="hint">Attachment: '+esc(f.name)+'.pdf · <a href="'+esc(f.url)+'" target="_blank" rel="noopener">review the draft first</a></p>'+
+    '<p class="err" id="mErr"></p><div class="acts"><button class="btn ghost" data-close>Cancel</button><button class="btn" id="scSend">Send</button></div>');
+  $('#scSend').onclick=function(){
+    var btn=this, to=$('#scTo').value.trim(), subj=$('#scSubj').value;
+    if(!/@/.test(to)){ $('#mErr').textContent='Add the client’s email.'; $('#scTo').focus(); return; }
+    if(!confirm('Send the agreement to '+to+' now?')) return;
+    btn.disabled=true; btn.textContent='Sending…';
+    api('sendContract',{fileId:fileId, to:to, cc:$('#scCc').value, subject:subj, body:$('#scBody').value, followUp:$('#scFollow').value, bccMe:$('#scBcc').checked}).then(function(j){
+      S.files.push(j.file); if(j.project){ replaceProject(j.project); if(D&&D.id===j.project.id) D.draft=Object.assign({},j.project); }
+      S.log.push({id:'tmp'+Date.now(), projectId:f.projectId, ts:new Date().toISOString(), type:'email', text:'→ '+subj+'\nContract sent to '+to});
+      closeModal(); drawDrawer(); render(); toast('Agreement sent to '+to);
+    }).catch(function(e){ btn.disabled=false; btn.textContent='Send'; if(e.message!=='signed out') $('#mErr').textContent=e.message; });
+  };
+}
 function wireTab(){
   wireLastContact();
   var ph=$('#dbody input[data-k=phone]');
@@ -970,11 +1000,12 @@ function wireTab(){
     if(!confirm('Remove this payment?')) return;
     api('deletePayment',{id:b.dataset.delpay}).then(function(){ S.payments=S.payments.filter(function(x){ return x.id!==b.dataset.delpay; }); drawDrawer(); render(); }).catch(function(e){ if(e.message!=='signed out') toast(e.message,true); });
   }; });
+  $$('[data-sendfile]').forEach(function(b){ b.onclick=function(){ openSendContract(b.dataset.sendfile); }; });
   var gc=$('#genContract'); if(gc) gc.onclick=function(){
     if(!S.settings.contractTemplateId){ openSettings(); toast('Set a contract template first',true); return; }
     if(D.dirty){ toast('Save your changes first so the contract uses them',true); return; }
     gc.disabled=true; gc.textContent='Generating…';
-    api('generateContract',{projectId:D.id}).then(function(j){ S.files.push(j.file); drawDrawer(); toast('Contract draft created'); window.open(j.file.url,'_blank','noopener'); })
+    api('generateContract',{projectId:D.id}).then(function(j){ S.files.push(j.file); drawDrawer(); toast('Draft created — review it, then tap “Email to client”'); })
       .catch(function(e){ gc.disabled=false; gc.textContent='Generate contract draft'; if(e.message!=='signed out') toast(e.message,true); });
   };
   $$('#dbody [data-k]').forEach(function(i){

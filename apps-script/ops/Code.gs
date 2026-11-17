@@ -201,6 +201,7 @@ function route_(req) {
     if (a === 'addPayment') return { ok: true, payment: addPayment_(req.payment) };
     if (a === 'deletePayment') { deleteRow_(TAB_PAYMENTS, req.id); return { ok: true }; }
     if (a === 'generateContract') return { ok: true, file: generateContract_(req.projectId) };
+    if (a === 'sendContract') return sendContract_(req);
     if (a === 'createContractTemplate') return { ok: true, settings: createContractTemplate_() };
     if (a === 'saveSettings') return { ok: true, settings: saveSettings_(req.settings || {}) };
     if (a === 'installTriggers') { installTriggers(); return { ok: true, settings: getSettings_() }; }
@@ -753,4 +754,39 @@ function createContractTemplate_() {
 function createContractTemplateMenu() {
   var s = createContractTemplate_();
   SpreadsheetApp.getUi().alert('Template created and set:\n' + s.contractTemplateUrl);
+}
+
+/* ---------------- email a contract to the client ---------------- */
+
+function sendContract_(req) {
+  var f = readTab_(TAB_FILES).filter(function (x) { return String(x.id) === String(req.fileId); })[0];
+  if (!f || !f.driveId) throw new Error('That file is not in the contracts folder (links can\'t be attached).');
+  var to = String(req.to || '').split(/[,;\s]+/).filter(function (e) { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e); });
+  if (!to.length) throw new Error('Add the client\'s email address.');
+  var cc = String(req.cc || '').split(/[,;\s]+/).filter(function (e) { return /@/.test(e); });
+  var pr = readTab_(TAB_PROJECTS).filter(function (x) { return String(x.id) === String(f.projectId); })[0] || {};
+  var file = DriveApp.getFileById(f.driveId);
+  var pdfName = String(f.name || 'Agreement').replace(/[\\/:*?"<>|]+/g, '-') + '.pdf';
+  var pdf = file.getAs('application/pdf').setName(pdfName);
+  var subject = String(req.subject || ('Herd Co. agreement — ' + (pr.name || ''))).slice(0, 200);
+  var body = String(req.body || '').slice(0, 10000);
+  var opts = { attachments: [pdf], name: 'Levi McNeely · The Herd Co.', replyTo: 'levi@herdcoindy.com' };
+  if (cc.length) opts.cc = cc.join(',');
+  if (req.bccMe) opts.bcc = ownerEmail_();
+  GmailApp.sendEmail(to.join(','), subject, body, opts);
+
+  // Save the sent PDF next to the draft so you have exactly what went out.
+  var sent = contractsFolder_().createFile(pdf.copyBlob().setName('SENT ' + today_() + ' — ' + pdfName));
+  var rec = withLock_(function () {
+    var r = writeObj_(TAB_FILES, {
+      id: newId_('f'), projectId: f.projectId, ts: nowIso_(), kind: 'Contract sent', name: sent.getName(), date: today_(),
+      url: sent.getUrl(), driveId: sent.getId(), mime: 'application/pdf', size: String(sent.getSize())
+    }, FILE_FIELDS);
+    addLog_(f.projectId, 'email', '→ ' + subject + '\nContract sent to ' + to.join(', ') + (cc.length ? ' (cc ' + cc.join(', ') + ')' : '') + '\n\n' + body);
+    var patch = { id: f.projectId, lastContact: today_(), nextStep: 'Get the signed agreement back', nextDate: req.followUp || '' };
+    if (!req.followUp) delete patch.nextDate;
+    writeObj_(TAB_PROJECTS, patch, PROJECT_FIELDS);
+    return r;
+  });
+  return { ok: true, file: rec, project: readTab_(TAB_PROJECTS).filter(function (x) { return String(x.id) === String(f.projectId); })[0] };
 }

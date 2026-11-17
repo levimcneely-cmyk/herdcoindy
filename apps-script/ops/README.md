@@ -44,7 +44,9 @@ To skip monitoring for a project (for example, an app only your client's domain 
 
 ### Contract template placeholders
 `{{provider}} {{client}} {{org}} {{contactName}} {{email}} {{phone}} {{service}} {{scope}} {{value}} {{deposit}} {{balance}} {{monthly}} {{deliveryDue}} {{date}} {{liveUrl}} {{domain}}`.
-**Generate contract draft** (Contracts & files tab) copies the template into the private contracts folder, fills it in, and opens it.
+**Generate contract draft** (Contracts & files tab) copies the template into the private contracts folder and fills it in.
+**Email to client** (on the draft) sends it from your account as a PDF with an editable message. It saves a "SENT" copy of exactly what went out, logs the email, and sets the next step to "Get the signed agreement back".
+When the signed copy comes back, upload it as **Executed contract**. That fills in the contract date and offers to move the project to Under contract.
 
 ### Client handoff guide
 **Spec / handoff → Client handoff** leaves out money, contacts and anything under an architecture heading that contains "Internal".
