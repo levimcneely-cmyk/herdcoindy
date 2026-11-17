@@ -1243,7 +1243,8 @@ function openSettings(){
     '<label class="f">“Gone quiet” after (days)<input type="number" min="1" id="stStale" value="'+esc(st.staleDays||14)+'"></label>'+
     '<label class="f span3">Contract template (Google Doc link)<input type="url" id="stTpl" value="'+esc(st.contractTemplateUrl||'')+'" placeholder="https://docs.google.com/document/d/…"></label></div>'+
     '<p class="hint">Template placeholders: {{provider}} {{client}} {{org}} {{contactName}} {{email}} {{phone}} {{service}} {{scope}} {{value}} {{deposit}} {{balance}} {{monthly}} {{deliveryDue}} {{date}} {{liveUrl}} {{domain}}'+
-    (st.contractTemplateUrl?' · <a href="'+esc(st.contractTemplateUrl)+'" target="_blank" rel="noopener">Open template</a>':' · <button class="linkbtn" id="stMakeTpl">Create a starter template</button>')+'</p>'+
+    '</p><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">'+(st.contractTemplateUrl?'<a class="btn ghost sm" href="'+esc(st.contractTemplateUrl)+'" target="_blank" rel="noopener">Open &amp; edit template</a>':'')+
+    '<button class="btn sm" id="stMakeTpl">'+(st.contractTemplateUrl?'Create a fresh starter agreement':'Create starter agreement')+'</button></div>'+
     '<p class="err" id="mErr"></p><div class="acts"><button class="btn ghost" data-close>Close</button><button class="btn" id="stSave">Save settings</button></div>');
   var busy=function(b,t){ b.disabled=true; b.dataset.t=b.textContent; b.textContent=t; }, done=function(b){ b.disabled=false; b.textContent=b.dataset.t; };
   var fail=function(b){ return function(e){ done(b); if(e.message!=='signed out') $('#mErr').textContent=e.message; }; };
@@ -1251,7 +1252,7 @@ function openSettings(){
   $('#stHealth').onclick=function(){ var b=this; busy(b,'Checking…'); api('runHealth').then(function(j){ S.health=j.health||[]; S.settings.lastHealth=new Date().toISOString(); done(b); render(); var bad=S.health.filter(function(h){ return h.ok==='no'; }).length; toast(bad?bad+' failing — see dashboard':'All '+S.health.length+' passing', !!bad); }).catch(fail(b)); };
   $('#stMail').onclick=function(){ var b=this; busy(b,'Syncing…'); api('syncEmail').then(function(j){ S.log=j.log||S.log; S.projects=j.projects||S.projects; S.settings.lastEmailSync=new Date().toISOString(); done(b); render(); toast(j.added+' new email'+(j.added===1?'':'s')+' logged'); }).catch(fail(b)); };
   $('#stDigest').onclick=function(){ var b=this; busy(b,'Sending…'); api('sendDigest').then(function(){ done(b); toast('Digest sent to '+(S.settings.digestTo||'you')); }).catch(fail(b)); };
-  var mk=$('#stMakeTpl'); if(mk) mk.onclick=function(){ mk.textContent='Creating…'; api('createContractTemplate').then(function(j){ S.settings=j.settings; openSettings(); window.open(j.settings.contractTemplateUrl,'_blank','noopener'); toast('Template created — paste your agreement into it'); }).catch(fail(mk)); };
+  var mk=$('#stMakeTpl'); if(mk) mk.onclick=function(){ if(S.settings.contractTemplateUrl && !confirm('Create a new full starter agreement and use it as your template? Your current template Doc stays in the folder.')) return; mk.textContent='Creating…'; api('createContractTemplate').then(function(j){ S.settings=j.settings; openSettings(); window.open(j.settings.contractTemplateUrl,'_blank','noopener'); toast('Starter agreement created — review and edit it in Google Docs'); }).catch(fail(mk)); };
   $('#stSave').onclick=function(){ var b=this; busy(b,'Saving…'); api('saveSettings',{settings:{digestTo:$('#stTo').value, staleDays:$('#stStale').value, contractTemplateId:$('#stTpl').value}}).then(function(j){ S.settings=Object.assign(S.settings,j.settings); closeModal(); render(); toast('Settings saved'); }).catch(fail(b)); };
 }
 $('#settingsBtn').onclick=openSettings;

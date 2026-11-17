@@ -32,7 +32,7 @@ Google Sheet owned by the Herd Co. Google account. This Apps Script checks the p
    This adds the `Payments` and `Health` tabs and new Project columns. It also sorts existing projects into Client / Internal / Personal.
 3. **Deploy → Manage deployments → ✏️ → Version: New version → Deploy.** The URL stays the same.
 4. In /admin, open **⋯ → Settings & automations** and click **Turn on automations**.
-   Then either **Create a starter template** or paste the link to your own agreement Doc.
+   Then click **Create starter agreement**. This makes a complete, branded Client Project Agreement as a Google Doc in the contracts folder. Review it, edit it in Google Docs, and it becomes the template. You can paste a link to your own agreement Doc instead.
 
 ### What runs on its own
 | When | What |

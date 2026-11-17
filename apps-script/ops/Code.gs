@@ -707,6 +707,7 @@ function generateContract_(projectId) {
   var name = 'Agreement — ' + (pr.name || 'Client') + ' — ' + today_();
   var copy = DriveApp.getFileById(tpl).makeCopy(name, contractsFolder_());
   var doc = DocumentApp.openById(copy.getId());
+  stripTemplateNotes_(doc.getBody());
   var parts = [doc.getBody(), doc.getHeader(), doc.getFooter()].filter(function (x) { return x; });
   Object.keys(vals).forEach(function (k) {
     var val = String(vals[k]).replace(/\{\{/g, '{ {');
@@ -729,28 +730,169 @@ function generateContract_(projectId) {
   return rec;
 }
 
+var NOTES_START = 'TEMPLATE NOTES', NOTES_END = 'END OF TEMPLATE NOTES';
+
+/** Agreement text. Each entry: [kind, text]. kind: h = section heading, p = paragraph, b = bullet, sig = signature block. */
+function agreementOutline_() {
+  return [
+    ['title', 'Client Project Agreement'],
+    ['p', 'This Client Project Agreement (the “Agreement”) is made on {{date}} between Hoosier Prairie Holdings, LLC d/b/a Herd Co Indy, an Indiana limited liability company (“Herd Co.”), and {{org}} (“Client”).'],
+    ['p', 'Client contact: {{contactName}} · {{email}} · {{phone}}'],
+
+    ['h', '1. The project'],
+    ['p', 'Herd Co. will build {{client}} ({{service}}) for Client. The work includes:'],
+    ['p', '{{scope}}'],
+    ['p', 'Anything not listed above is outside this Agreement. New requests are handled under section 7 (Changes).'],
+
+    ['h', '2. How we work'],
+    ['b', 'Consult: we confirm how Client’s group runs, what the project must do, and what “done” means.'],
+    ['b', 'Deploy: Herd Co. sets up the project on Client’s own accounts with Client’s name, colors, content and domain.'],
+    ['b', 'Test and validate: we walk through it together on real phones and computers and fix what’s off.'],
+    ['b', 'Handoff: Client receives a simple guide, admin access and full ownership of the accounts.'],
+    ['p', 'Client will name one point of contact, provide content, logos and account access, and give feedback within 5 business days of a request. Delays in these items move the timeline by the same amount.'],
+
+    ['h', '3. Timeline'],
+    ['p', 'Herd Co. will target delivery by {{deliveryDue}}, starting once this Agreement is signed and the deposit is received. Herd Co. will tell Client promptly if the date is at risk.'],
+
+    ['h', '4. Price and payment'],
+    ['b', 'Project fee: {{value}}.'],
+    ['b', 'Deposit: {{deposit}}, due when this Agreement is signed. The deposit is non-refundable once work begins.'],
+    ['b', 'Balance: {{balance}}, due at handoff, within 7 days of invoice.'],
+    ['b', 'Herd Co. may pause work while an invoice is more than 14 days past due.'],
+    ['p', 'Third-party costs, such as a domain name or a paid service Client chooses, are paid by Client directly to the provider. Herd Co. will estimate these before starting and will not add them without Client’s approval.'],
+
+    ['h', '5. Your accounts, your project'],
+    ['p', 'The project runs on accounts in Client’s name (for example Google, GitHub and the domain registrar). Client keeps the passwords to those accounts. Herd Co. uses only the access it needs to build and support the project, and will remove its own access on Client’s request at any time after handoff.'],
+
+    ['h', '6. Ownership'],
+    ['p', 'Once Client has paid in full, Client owns the project built for it, including its content, data and design. Herd Co. keeps ownership of its general tools, templates, code patterns and know-how that it uses across clients, and gives Client a permanent, royalty-free license to use them as part of the project. Open-source and third-party components stay under their own licenses.'],
+
+    ['h', '7. Changes'],
+    ['p', 'Requests beyond the scope in section 1 will be quoted in writing (email is fine) before any work starts. Herd Co. will not bill for extra work Client has not approved.'],
+
+    ['h', '8. Support after handoff'],
+    ['b', 'Fix period: for 30 days after handoff, Herd Co. will fix defects in what it built at no charge. This does not cover new features, changes made by others, or outages of third-party services.'],
+    ['b', 'Optional care plan: {{monthly}} per month for updates, monitoring and small fixes. Month to month; either party may cancel with 30 days’ notice.'],
+    ['p', 'Care plan:  ☐ Client adds the care plan     ☐ Client declines'],
+
+    ['h', '9. AI features'],
+    ['p', 'If the project includes AI agents or automation, Client understands that AI output can be wrong. A person on Client’s side should review anything important before it is sent or relied on. Usage fees charged by AI providers are paid by Client.'],
+
+    ['h', '10. Confidentiality and data'],
+    ['p', 'Each party will keep the other’s non-public information private and use it only for this project. Herd Co. will access Client’s data only to build and support the project, will never sell it, and will delete any copies it holds when Client asks.'],
+
+    ['h', '11. Portfolio'],
+    ['p', 'Herd Co. may show screenshots and a general description of the project in its portfolio only with names, organizations and confidential details removed.'],
+    ['p', 'Portfolio use:  ☐ Client agrees     ☐ Client does not agree'],
+
+    ['h', '12. Client content'],
+    ['p', 'Client confirms it has the right to use the content, images and logos it provides, and will cover any claim that such content infringes someone else’s rights.'],
+
+    ['h', '13. Warranty and liability'],
+    ['p', 'Herd Co. will do the work in a professional manner. Apart from the fix period in section 8, the project is provided as-is. Herd Co. is not responsible for outages or changes at third-party services it does not control. Herd Co.’s total liability under this Agreement is limited to the fees Client has paid, and neither party is liable for indirect or lost-profit damages.'],
+
+    ['h', '14. Ending early'],
+    ['p', 'Either party may end this Agreement with written notice. Client pays for work completed up to that date (the deposit counts toward it), and Herd Co. hands over the completed work once paid.'],
+
+    ['h', '15. General'],
+    ['p', 'Herd Co. is an independent contractor. This is the entire agreement between the parties and can only be changed in writing. Indiana law governs, with courts in Johnson County, Indiana. Electronic, scanned or photographed signatures count as originals.'],
+
+    ['sig', '']
+  ];
+}
+
+function brandText_(t, o) {
+  var a = {};
+  a[DocumentApp.Attribute.FONT_FAMILY] = o.font || 'Barlow';
+  a[DocumentApp.Attribute.FONT_SIZE] = o.size || 11;
+  a[DocumentApp.Attribute.FOREGROUND_COLOR] = o.color || '#1B211D';
+  a[DocumentApp.Attribute.BOLD] = !!o.bold;
+  t.setAttributes(a);
+  return t;
+}
+
 function createContractTemplate_() {
   var doc = DocumentApp.create('Herd Co. — Client Agreement TEMPLATE');
   var b = doc.getBody();
-  b.appendParagraph('HOW TO USE THIS TEMPLATE (delete this box when done)').setHeading(DocumentApp.ParagraphHeading.HEADING3);
-  b.appendParagraph('Paste your real client project agreement below this box. Wherever a client-specific detail goes, type the matching placeholder (with the double curly braces). "Generate contract" in /admin makes a copy of this Doc and fills every placeholder from the project.');
-  var t = b.appendTable([['Placeholder', 'Filled with']].concat(CONTRACT_KEYS.map(function (k) { return ['{{' + k[0] + '}}', k[1]]; })));
-  t.getRow(0).editAsText().setBold(true);
+  b.setMarginTop(54).setMarginBottom(54).setMarginLeft(64).setMarginRight(64);
+  var first = b.getChild(0).asParagraph();
+
+  // Template notes (stripped from every generated contract)
+  first.setText(NOTES_START + ' — this box is removed automatically from every contract you generate');
+  brandText_(first, { font: 'Barlow Condensed', size: 12, bold: true, color: '#163823' });
+  [
+    'Review every section and edit freely in Google Docs. Your edits are saved here, and every new contract starts from this version.',
+    'Words in {{double braces}} are filled from the project in /admin: {{provider}} {{client}} {{org}} {{contactName}} {{email}} {{phone}} {{service}} {{scope}} {{value}} {{deposit}} {{balance}} {{monthly}} {{deliveryDue}} {{date}} {{liveUrl}} {{domain}}.',
+    'Keep the braces exactly as written. Delete a placeholder if you don’t want it in your agreements.',
+    'This is a plain-language starting point, not legal advice. Have an Indiana attorney review it once before you use it with clients.'
+  ].forEach(function (t) { brandText_(b.appendParagraph(t), { size: 10, color: '#5B665F' }); });
+  brandText_(b.appendParagraph(NOTES_END), { size: 9, bold: true, color: '#5B665F' });
   b.appendHorizontalRule();
-  b.appendParagraph('Client Project Agreement').setHeading(DocumentApp.ParagraphHeading.TITLE);
-  b.appendParagraph('This agreement is between {{provider}} ("Provider") and {{org}} ("Client"), dated {{date}}.');
-  b.appendParagraph('Client contact: {{contactName}} · {{email}} · {{phone}}');
-  b.appendParagraph('Project: {{client}} ({{service}})');
-  b.appendParagraph('Scope: {{scope}}');
-  b.appendParagraph('Price: {{value}} · Deposit: {{deposit}} · Due at delivery: {{balance}} · Recurring: {{monthly}}/mo');
-  b.appendParagraph('Target delivery: {{deliveryDue}}');
-  b.appendParagraph('[Paste the rest of your agreement terms here.]').editAsText().setItalic(true);
+
+  agreementOutline_().forEach(function (it) {
+    var kind = it[0], text = it[1];
+    if (kind === 'title') {
+      var t = b.appendParagraph(text.toUpperCase());
+      brandText_(t, { font: 'Barlow Condensed', size: 22, bold: true, color: '#163823' });
+      t.setSpacingAfter(4);
+      brandText_(b.appendParagraph('The Herd Co. · Sites, apps, and agents for teams that run lean.'), { size: 10, color: '#5B665F' }).setSpacingAfter(14);
+    } else if (kind === 'h') {
+      var h = b.appendParagraph(text.toUpperCase());
+      brandText_(h, { font: 'Barlow Condensed', size: 13, bold: true, color: '#163823' });
+      h.setSpacingBefore(14).setSpacingAfter(4);
+    } else if (kind === 'b') {
+      var li = b.appendListItem(text).setGlyphType(DocumentApp.GlyphType.BULLET);
+      brandText_(li, {}); li.setSpacingAfter(3);
+    } else if (kind === 'p') {
+      brandText_(b.appendParagraph(text), {}).setSpacingAfter(6).setLineSpacing(1.15);
+    } else if (kind === 'sig') {
+      var sh = b.appendParagraph('SIGNATURES');
+      brandText_(sh, { font: 'Barlow Condensed', size: 13, bold: true, color: '#163823' });
+      sh.setSpacingBefore(18).setSpacingAfter(6);
+      var tbl = b.appendTable([
+        ['Herd Co.', 'Client'],
+        ['Hoosier Prairie Holdings, LLC d/b/a Herd Co Indy', '{{org}}'],
+        ['Name: Levi McNeely', 'Name: {{contactName}}'],
+        ['Title: Owner', 'Title:'],
+        ['Signature:\n\n', 'Signature:\n\n'],
+        ['Date:', 'Date:']
+      ]);
+      tbl.setBorderColor('#DFDBD0');
+      for (var r = 0; r < tbl.getNumRows(); r++) for (var c = 0; c < 2; c++) {
+        brandText_(tbl.getCell(r, c), r === 0 ? { font: 'Barlow Condensed', size: 12, bold: true, color: '#163823' } : {});
+      }
+    }
+  });
+
+  var foot = doc.addFooter();
+  brandText_(foot.appendParagraph('Hoosier Prairie Holdings, LLC d/b/a Herd Co Indy · Greenwood / Indianapolis, Indiana · herdcoindy.com · levi@herdcoindy.com'), { size: 8, color: '#5B665F' })
+    .setAlignment(DocumentApp.HorizontalAlignment.CENTER);
   doc.saveAndClose();
+
   var f = DriveApp.getFileById(doc.getId());
   f.moveTo(contractsFolder_());
   PropertiesService.getScriptProperties().setProperty('CONTRACT_TEMPLATE_ID', doc.getId());
   return getSettings_();
 }
+
+/** Remove the template-notes block (and the rule after it) from a generated contract. */
+function stripTemplateNotes_(body) {
+  var start = -1, end = -1;
+  for (var i = 0; i < body.getNumChildren(); i++) {
+    var t = body.getChild(i).getText ? body.getChild(i).getText() : '';
+    if (start < 0 && t.indexOf(NOTES_START) === 0) start = i;
+    if (start >= 0 && t.indexOf(NOTES_END) === 0) { end = i; break; }
+  }
+  if (start < 0 || end < 0) return;
+  var next = body.getChild(end + 1);
+  if (next && next.getType && next.getType() === DocumentApp.ElementType.HORIZONTAL_RULE) end++;
+  else if (next && next.getText && next.getText() === '' && next.getNumChildren && next.getNumChildren() && next.getChild(0).getType() === DocumentApp.ElementType.HORIZONTAL_RULE) end++;
+  for (var j = end; j >= start; j--) {
+    if (j === body.getNumChildren() - 1) { body.getChild(j).asParagraph().setText(''); continue; } // a body can't lose its last child
+    body.removeChild(body.getChild(j));
+  }
+}
+
 function createContractTemplateMenu() {
   var s = createContractTemplate_();
   SpreadsheetApp.getUi().alert('Template created and set:\n' + s.contractTemplateUrl);
