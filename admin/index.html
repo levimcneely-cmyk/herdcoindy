@@ -125,6 +125,9 @@
   .tile .nm{font-weight:600}
   .tile .meta{font-size:.84rem;color:var(--muted);margin-top:2px}
   .tile .foot{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center;font-size:.82rem}
+  .tile{min-width:0;overflow-wrap:anywhere}
+  .tile .foot>*{min-width:0;max-width:100%}
+  .tile .foot a{overflow-wrap:anywhere;word-break:break-word}
   .tile .money{margin-left:auto;font-weight:600;color:var(--green)}
 
   /* tables */
