@@ -53,7 +53,8 @@
   .btn.light{background:#fff;color:var(--green) !important}
   .btn.light:hover{background:#eef0ea}
   .btn.ghost{background:transparent;border:1.5px solid rgba(255,255,255,.6)}
-  @media (max-width:720px){ header.nav nav a.hide-sm{display:none} header.nav img{height:30px} }
+  @media (max-width:720px){ header.nav nav a.hide-sm{display:none} header.nav img{height:30px} header.nav nav{gap:14px} header.nav nav a{white-space:nowrap;font-size:.9rem} header.nav .btn{padding:10px 16px} header.nav .wrap{gap:16px} }
+  @media (max-width:380px){ header.nav img{height:24px} header.nav nav{gap:10px} header.nav .btn{padding:9px 13px} }
 
   /* hero */
   .hero{background:var(--green);color:#fff;padding:90px 0 96px;position:relative;overflow:hidden}
@@ -158,6 +159,7 @@
     <nav>
       <a class="hide-sm" href="#what">What we do</a>
       <a class="hide-sm" href="#how">How it works</a>
+      <a href="portfolio">Portfolio</a>
       <a class="btn" href="#contact">Get in touch</a>
     </nav>
   </div>
