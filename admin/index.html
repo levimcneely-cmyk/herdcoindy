@@ -376,7 +376,7 @@ var STAGES = [
   {k:'contract',   label:'Under contract', hint:'Signed, building'},
   {k:'live',       label:'Live',           hint:'Delivered and running'},
   {k:'future',     label:'Future',         hint:'Parked — revisit later'},
-  {k:'closed',     label:'Closed',         hint:'Passed, lost, or retired'}
+  {k:'closed',     label:'Closed',         hint:'Won & done, passed, lost, or retired'}
 ];
 var STAGE = {}; STAGES.forEach(function(s){ STAGE[s.k]=s; });
 var SERVICES = ['Event site','Group site','Operations tool','AI agent','Not sure yet','Other'];
@@ -387,7 +387,9 @@ var CONTACT_TYPES = [{k:'text',label:'Text',ic:'💬'},{k:'call',label:'Call',ic
 var CONTACT_KEYS = {text:1,call:1,email:1,'face-to-face':1,meeting:1};
 var TYPES = [{k:'client',label:'Client'},{k:'internal',label:'Internal'},{k:'personal',label:'Personal'}];
 var PAY_METHODS = ['Venmo','Check','ACH / Found','Card','Cash','Other'];
-var CLOSE_REASONS = ['Lost — price','Lost — timing','Went with someone else','Not a fit','No response','Retired / sunset','Other'];
+var WON_DONE = 'Won, done';
+function isWonDone(p){ return p.stage==='closed' && p.closedReason===WON_DONE; }
+var CLOSE_REASONS = [WON_DONE,'Lost — price','Lost — timing','Went with someone else','Not a fit','No response','Retired / sunset','Other'];
 var DEFAULT_STEPS = ['Consult','Deploy','Test / validate','Handoff'];
 
 var SITE_KIT_TEMPLATE = [
@@ -570,7 +572,7 @@ function renderDash(){
   var live=P.filter(function(p){ return p.stage==='live'; });
   var booked=P.filter(function(p){ return (p.stage==='contract'||p.stage==='live'||p.stage==='closed') && String(p.contractDate).slice(0,4)===year; });
   var sum=function(a,k){ return a.reduce(function(s,p){ return s+num(p[k]); },0); };
-  var outstanding=P.filter(function(p){ return p.stage==='contract'||p.stage==='live'; }).reduce(function(s,p){ return s+Math.max(0,num(p.value)-paidFor(p)); },0);
+  var outstanding=P.filter(function(p){ return p.stage==='contract'||p.stage==='live'||isWonDone(p); }).reduce(function(s,p){ return s+Math.max(0,num(p.value)-paidFor(p)); },0);
   var collectedYr=S.payments.filter(function(x){ var p=byId(x.projectId); return p&&inScope(p)&&String(x.date).slice(0,4)===year; }).reduce(function(t,x){ return t+num(x.amount); },0);
 
   var kpis='<div class="kpis">'+
@@ -590,7 +592,7 @@ function renderDash(){
     if(p.stage==='contract' && !filesFor(p.id).some(function(f){ return f.kind==='Executed contract'; })) att.push({p:p, sort:999, flag:'<span class="flag amber">No contract on file</span>', txt:'Upload the executed contract'});
     if(p.stage==='lead' && !p.nextDate) att.push({p:p, sort:998, flag:'<span class="flag amber">New lead</span>', txt:'Set a next step'});
     if(typeOf(p)==='client' && (p.stage==='lead'||p.stage==='discussion'||p.stage==='contract') && (d=dayDiff(lastContactOf(p)))!==null && -d>=stale) att.push({p:p, sort:500, flag:'<span class="flag amber">Gone quiet</span>', txt:'No contact in '+(-d)+' days'});
-    if((p.stage==='live'||p.stage==='contract') && num(p.value) && p.deliveredDate && paidFor(p)<num(p.value)) att.push({p:p, sort:600, flag:'<span class="flag amber">Balance due</span>', txt:money(num(p.value)-paidFor(p))+' outstanding'});
+    if((p.stage==='live'||p.stage==='contract'||isWonDone(p)) && num(p.value) && p.deliveredDate && paidFor(p)<num(p.value)) att.push({p:p, sort:600, flag:'<span class="flag amber">Balance due</span>', txt:money(num(p.value)-paidFor(p))+' outstanding'});
   });
   att.sort(function(a,b){ return a.sort-b.sort; });
   var attHtml='<div class="card"><h3>Needs attention</h3>'+(att.length?'<ul class="list">'+att.slice(0,16).map(function(a){ return '<li data-open="'+esc(a.p.id)+'"><span>'+a.flag+'</span><span><span class="nm">'+esc(title(a.p))+'</span> <span class="muted small">— '+esc(a.txt)+'</span></span></li>'; }).join('')+'</ul>':'<p class="empty">All clear. Nothing due in the next few days.</p>')+'</div>';
@@ -614,8 +616,8 @@ function renderDash(){
 
   // lead sources + win rate (clients only)
   var C=S.projects.filter(function(p){ return typeOf(p)==='client'; }), src={};
-  var won=function(p){ return p.stage==='contract'||p.stage==='live'||(p.stage==='closed'&&!!p.contractDate); };
-  C.forEach(function(p){ var k=p.source||'Unknown'; src[k]=src[k]||{n:0,w:0,lost:0,v:0}; src[k].n++; if(won(p)){ src[k].w++; src[k].v+=num(p.value); } if(p.stage==='closed'&&!p.contractDate) src[k].lost++; });
+  var won=function(p){ return p.stage==='contract'||p.stage==='live'||isWonDone(p)||(p.stage==='closed'&&!!p.contractDate); };
+  C.forEach(function(p){ var k=p.source||'Unknown'; src[k]=src[k]||{n:0,w:0,lost:0,v:0}; src[k].n++; if(won(p)){ src[k].w++; src[k].v+=num(p.value); } if(p.stage==='closed'&&!p.contractDate&&!isWonDone(p)) src[k].lost++; });
   var reasons={}; C.forEach(function(p){ if(p.stage==='closed'&&p.closedReason) reasons[p.closedReason]=(reasons[p.closedReason]||0)+1; });
   var keys=Object.keys(src).sort(function(a,b){ return src[b].n-src[a].n; });
   var decided=C.filter(function(p){ return won(p)||p.stage==='closed'; }).length, wins=C.filter(won).length;
@@ -679,6 +681,8 @@ function tile(p){
   if(p.stage==='contract' && p.deliveryDue){ var d=dayDiff(p.deliveryDue); foot.push('<span class="flag '+(d<0?'red':d<=7?'amber':'green')+'">Due '+fmtDate(p.deliveryDue)+'</span>'); }
   else if(isOpen(p) && p.nextDate){ var e=dayDiff(p.nextDate); foot.push('<span class="flag '+(e<0?'red':e<=1?'amber':'green')+'">'+fmtDate(p.nextDate)+'</span>'); }
   if(p.stage==='live' && p.liveUrl) foot.push('<span class="small">'+link(p.liveUrl, host(p.liveUrl))+'</span>');
+  if(isWonDone(p)) foot.push('<span class="flag green">Won, done</span>');
+  else if(p.stage==='closed' && p.closedReason) foot.push('<span class="muted">'+esc(p.closedReason)+'</span>');
   if(num(p.value)) foot.push('<span class="money">'+money(p.value)+'</span>');
   var meta=[p.org&&p.org!==p.name?p.org:'', p.contactName].filter(Boolean).join(' · ');
   var tb=typeOf(p)!=='client'?'<span class="tbadge">'+esc(typeOf(p))+'</span>':'';
@@ -700,6 +704,7 @@ function moveStage(p, stage, reason){
   if(stage==='closed' && reason===undefined){ askCloseReason(p, function(r){ moveStage(p, stage, r); }); return; }
   var patch={id:p.id, stage:stage};
   if(stage==='closed') patch.closedReason=reason||'';
+  if(stage==='closed' && reason===WON_DONE && !p.deliveredDate) patch.deliveredDate=todayStr();
   if(stage==='contract' && !p.contractDate) patch.contractDate=todayStr();
   if(stage==='live' && !p.deliveredDate) patch.deliveredDate=todayStr();
   var old=Object.assign({},p); Object.assign(p,patch); render();
@@ -707,7 +712,7 @@ function moveStage(p, stage, reason){
     .catch(function(err){ Object.assign(p,old); render(); if(err.message!=='signed out') toast(err.message,true); });
 }
 function askCloseReason(p, done){
-  modal('<h2>Close “'+esc(title(p))+'”</h2><label class="f">Why is it closing?<select id="crSel">'+CLOSE_REASONS.map(function(r){ return '<option'+(p.closedReason===r?' selected':'')+'>'+esc(r)+'</option>'; }).join('')+'</select></label><p class="hint">Used for the win-rate and “why closed” stats on the dashboard.</p><div class="acts"><button class="btn ghost" data-close>Cancel</button><button class="btn" id="crOk">Close project</button></div>');
+  modal('<h2>Close “'+esc(title(p))+'”</h2><label class="f">Why is it closing?<select id="crSel">'+CLOSE_REASONS.map(function(r){ return '<option'+(p.closedReason===r?' selected':'')+'>'+esc(r)+'</option>'; }).join('')+'</select></label><p class="hint">“Won, done” = we won it, built it, delivered it, and it’s finished — no care plan or maintenance. Counts as a win; nightly checks and email sync stop. Used for the win-rate and “why closed” stats on the dashboard.</p><div class="acts"><button class="btn ghost" data-close>Cancel</button><button class="btn" id="crOk">Close project</button></div>');
   $('#crOk').onclick=function(){ var r=$('#crSel').value; closeModal(); done(r); };
 }
 function addLocalStageLog(id, a, b){ S.log.push({id:'tmp'+Date.now(), projectId:id, ts:new Date().toISOString(), type:'stage', text:a+'→'+b}); }
@@ -799,7 +804,7 @@ function drawDrawer(){
   $('#dspec').onclick=function(){ openSpec(D.draft); };
   $('#dstage').onchange=function(){
     var s=this.value, sel=this;
-    if(s==='closed'){ askCloseReason(D.draft, function(r){ D.draft.stage='closed'; D.draft.closedReason=r; setDirty(true); drawDrawer(); }); sel.value=D.draft.stage; return; }
+    if(s==='closed'){ askCloseReason(D.draft, function(r){ D.draft.stage='closed'; D.draft.closedReason=r; if(r===WON_DONE && !D.draft.deliveredDate) D.draft.deliveredDate=todayStr(); setDirty(true); drawDrawer(); }); sel.value=D.draft.stage; return; }
     D.draft.stage=s;
     if(s==='contract' && !D.draft.contractDate) D.draft.contractDate=todayStr();
     if(s==='live' && !D.draft.deliveredDate) D.draft.deliveredDate=todayStr();

@@ -645,7 +645,7 @@ function digestData_() {
       if (lc && (x = dayDiff_(lc)) !== null && -x >= stale) d.quiet.push({ p: p, d: -x });
     }
     var bal = Number(p.value || 0) - paidFor(p);
-    if ((p.stage === 'contract' || p.stage === 'live') && bal > 0) d.unpaid.push({ p: p, bal: bal });
+    if ((p.stage === 'contract' || p.stage === 'live' || (p.stage === 'closed' && p.closedReason === 'Won, done')) && bal > 0) d.unpaid.push({ p: p, bal: bal });
   });
   health.forEach(function (h) { if (h.ok === 'no') d.down.push(h); });
   d.followUps.sort(function (a, b) { return a.d - b.d; });
