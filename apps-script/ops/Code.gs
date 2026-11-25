@@ -94,6 +94,7 @@ function contractsFolder_() {
   if (id) { try { return DriveApp.getFolderById(id); } catch (e) {} }
   var f = DriveApp.createFolder('Herd Co. Operations — Contracts & Files (private)');
   p.setProperty('FOLDER_ID', f.getId());
+  p.deleteProperty('FOLDER_URL');
   return f;
 }
 
@@ -181,11 +182,7 @@ function route_(req) {
   if (!checkToken_(req.token)) return { ok: false, auth: false, error: 'Signed out — please log in again.' };
 
   ensureSchema_();
-  if (a === 'bootstrap') return {
-    ok: true, projects: readTab_(TAB_PROJECTS), log: readTab_(TAB_LOG), files: readTab_(TAB_FILES),
-    payments: readTab_(TAB_PAYMENTS), health: readTab_(TAB_HEALTH), settings: getSettings_(),
-    folderUrl: contractsFolder_().getUrl(), sheetUrl: SpreadsheetApp.getActive().getUrl()
-  };
+  if (a === 'bootstrap') return bootstrap_();
   if (a === 'runHealth') return { ok: true, health: healthCheck() };
   if (a === 'syncEmail') { var n = syncEmail(); return { ok: true, added: n, log: readTab_(TAB_LOG), projects: readTab_(TAB_PROJECTS) }; }
   if (a === 'sendDigest') { weeklyDigest(); return { ok: true }; }
@@ -283,6 +280,37 @@ function cell_(v) {
   if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   if (typeof v === 'string' && /^'[=+\-@]/.test(v)) return v.slice(1);
   return v === null || v === undefined ? '' : v;
+}
+/** Everything the dashboard needs, in as few Google calls as possible (one read per tab, cached URLs). */
+function bootstrap_() {
+  var p = PropertiesService.getScriptProperties();
+  var props = p.getProperties();
+  var folderUrl = props.FOLDER_URL, sheetUrl = props.SHEET_URL;
+  if (!folderUrl) { folderUrl = contractsFolder_().getUrl(); p.setProperty('FOLDER_URL', folderUrl); }
+  if (!sheetUrl) { sheetUrl = SpreadsheetApp.getActive().getUrl(); p.setProperty('SHEET_URL', sheetUrl); }
+  return {
+    ok: true, projects: readTabFast_(TAB_PROJECTS), log: readTabFast_(TAB_LOG), files: readTabFast_(TAB_FILES),
+    payments: readTabFast_(TAB_PAYMENTS), health: readTabFast_(TAB_HEALTH), settings: getSettings_(props),
+    folderUrl: folderUrl, sheetUrl: sheetUrl
+  };
+}
+/** Same output as readTab_, but a single getDataRange() read instead of three separate calls. */
+function readTabFast_(name) {
+  var rows = sheet_(name).getDataRange().getValues();
+  if (rows.length < 2) return [];
+  var head = rows[0].map(String), tz = Session.getScriptTimeZone(), out = [];
+  for (var r = 1; r < rows.length; r++) {
+    var row = rows[r];
+    if (row[0] === '') continue;
+    var o = {};
+    for (var i = 0; i < head.length; i++) {
+      if (!head[i]) continue;
+      var v = row[i];
+      o[head[i]] = v instanceof Date ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : cell_(v);
+    }
+    out.push(o);
+  }
+  return out;
 }
 function readTab_(name) {
   var s = sheet_(name), last = s.getLastRow();
@@ -430,18 +458,24 @@ function inferTypes_() {
 
 /* ---------------- settings ---------------- */
 
-function getSettings_() {
+function getSettings_(props) {
   var p = PropertiesService.getScriptProperties();
-  var tpl = p.getProperty('CONTRACT_TEMPLATE_ID') || '';
-  var triggers = ScriptApp.getProjectTriggers().map(function (t) { return t.getHandlerFunction(); });
+  props = props || p.getProperties();
+  var tpl = props.CONTRACT_TEMPLATE_ID || '';
+  var auto = props.AUTOMATIONS;
+  if (auto !== 'on' && auto !== 'off') { // first run after upgrade: look once, then remember
+    var triggers = ScriptApp.getProjectTriggers().map(function (t) { return t.getHandlerFunction(); });
+    auto = triggers.indexOf('nightly') >= 0 && triggers.indexOf('weeklyDigest') >= 0 ? 'on' : 'off';
+    p.setProperty('AUTOMATIONS', auto);
+  }
   return {
-    digestTo: p.getProperty('DIGEST_TO') || ownerEmail_(),
-    staleDays: Number(p.getProperty('STALE_DAYS') || 14),
+    digestTo: props.DIGEST_TO || ownerEmail_(),
+    staleDays: Number(props.STALE_DAYS || 14),
     contractTemplateId: tpl,
     contractTemplateUrl: tpl ? 'https://docs.google.com/document/d/' + tpl + '/edit' : '',
-    automations: triggers.indexOf('nightly') >= 0 && triggers.indexOf('weeklyDigest') >= 0,
-    lastHealth: p.getProperty('LAST_HEALTH') || '',
-    lastEmailSync: p.getProperty('LAST_EMAIL_SYNC') || ''
+    automations: auto === 'on',
+    lastHealth: props.LAST_HEALTH || '',
+    lastEmailSync: props.LAST_EMAIL_SYNC || ''
   };
 }
 function saveSettings_(s) {
@@ -468,6 +502,7 @@ function installTriggers() {
   });
   ScriptApp.newTrigger('nightly').timeBased().everyDays(1).atHour(3).create();
   ScriptApp.newTrigger('weeklyDigest').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(7).create();
+  PropertiesService.getScriptProperties().setProperty('AUTOMATIONS', 'on');
 }
 function nightly() {
   healthCheck();

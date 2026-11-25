@@ -208,6 +208,8 @@
   #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-size:.92rem;z-index:90;box-shadow:0 8px 24px rgba(0,0,0,.2)}
   #toast.err{background:var(--red)}
   .loading{padding:60px 0;text-align:center;color:var(--muted)}
+  .sync{font-size:.78rem;font-weight:600;letter-spacing:.04em;color:rgba(255,255,255,.75);white-space:nowrap}
+  .sync.hidden{display:none}
   .scope{margin-left:auto;display:flex;gap:4px;align-items:center;padding:6px 0}
   .scope button{background:rgba(255,255,255,.1);border:0;color:rgba(255,255,255,.75);padding:5px 12px;border-radius:999px;font-size:.82rem;font-weight:600;cursor:pointer}
   .scope button.on{background:var(--tan);color:var(--green)}
@@ -330,6 +332,7 @@
     <div class="bar">
       <a href="../" aria-label="herdcoindy.com"><img src="../assets/logo-white.png" alt="The Herd Co."></a>
       <span class="title">Operations</span>
+      <span class="sync hidden" id="syncNote">Syncing…</span>
       <span class="sp"></span>
       <input type="search" id="q" placeholder="Search clients, notes, URLs…">
       <button class="btn light sm" id="newBtn">+ New</button>
@@ -485,7 +488,14 @@ function toast(msg, err){ var t=$('#toast'); t.textContent=msg; t.className=err?
 /* ================= api ================= */
 function getToken(){ try{ return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || ''; }catch(e){ return ''; } }
 function setToken(t, remember){ try{ localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY); (remember?localStorage:sessionStorage).setItem(TOKEN_KEY,t); }catch(e){} }
-function clearToken(){ try{ localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY); }catch(e){} }
+function clearToken(){ try{ localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY); }catch(e){} clearCache(); }
+/* Last-loaded data, kept in the same place as the sign-in (this device only if "keep me signed in"),
+   so the dashboard paints instantly and refreshes in the background. */
+var CACHE_KEY='herdOpsCache';
+function cacheStore(){ try{ return localStorage.getItem(TOKEN_KEY)?localStorage:sessionStorage; }catch(e){ return null; } }
+function readCache(){ try{ var st=cacheStore(), raw=st&&st.getItem(CACHE_KEY); return raw?JSON.parse(raw):null; }catch(e){ return null; } }
+function saveCache(){ try{ var st=cacheStore(); if(!st||!getToken()) return; st.setItem(CACHE_KEY, JSON.stringify({projects:S.projects,log:S.log,files:S.files,payments:S.payments,health:S.health,settings:S.settings,sheetUrl:S.sheetUrl,folderUrl:S.folderUrl})); }catch(e){} }
+function clearCache(){ try{ localStorage.removeItem(CACHE_KEY); sessionStorage.removeItem(CACHE_KEY); }catch(e){} }
 function api(action, data){
   var body = Object.assign({action:action, token:getToken()}, data||{});
   return fetch(API, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body)})
@@ -518,17 +528,29 @@ $('#loginForm').onsubmit=function(e){
 };
 
 /* ================= boot ================= */
+function applyData(j){
+  S.projects=j.projects||[]; S.log=j.log||[]; S.files=j.files||[]; S.payments=j.payments||[]; S.health=j.health||[]; S.settings=j.settings||{};
+  S.sheetUrl=j.sheetUrl||''; S.folderUrl=j.folderUrl||'';
+  $('#sheetLink').href=S.sheetUrl||'#'; $('#folderLink').href=S.folderUrl||'#';
+}
 function boot(){
   $('#app').classList.remove('hidden');
-  $('#main').innerHTML='<div class="loading">Loading…</div>';
+  var cached=readCache(), opened=false;
+  function openFromHash(){ if(opened) return; var m=location.hash.match(/^#p=(.+)$/); if(m && byId(decodeURIComponent(m[1]))){ opened=true; openProject(decodeURIComponent(m[1])); } }
+  if(cached){ applyData(cached); $('#fab').classList.remove('hidden'); render(); openFromHash(); }
+  else $('#main').innerHTML='<div class="loading">Loading…</div>';
+  $('#syncNote').classList.remove('hidden');
   return api('bootstrap').then(function(j){
-    S.projects=j.projects||[]; S.log=j.log||[]; S.files=j.files||[]; S.payments=j.payments||[]; S.health=j.health||[]; S.settings=j.settings||{};
+    applyData(j);
     $('#fab').classList.remove('hidden');
-    S.sheetUrl=j.sheetUrl||''; S.folderUrl=j.folderUrl||'';
-    $('#sheetLink').href=S.sheetUrl||'#'; $('#folderLink').href=S.folderUrl||'#';
-    render();
-    var m=location.hash.match(/^#p=(.+)$/); if(m && byId(decodeURIComponent(m[1]))) openProject(decodeURIComponent(m[1]));
-  }).catch(function(err){ if(err.message!=='signed out') $('#main').innerHTML='<div class="loading">'+esc(err.message)+' <button class="linkbtn" id="retry">Try again</button></div>', $('#retry')&&($('#retry').onclick=boot); });
+    render(true); saveCache();
+    if(D && !D.dirty && byId(D.id)){ D.draft=Object.assign({}, byId(D.id)); drawDrawer(); }
+    openFromHash();
+  }).catch(function(err){
+    if(err.message==='signed out') return;
+    if(cached) toast('Showing saved data — couldn’t refresh: '+err.message, true);
+    else $('#main').innerHTML='<div class="loading">'+esc(err.message)+' <button class="linkbtn" id="retry">Try again</button></div>', $('#retry')&&($('#retry').onclick=boot);
+  }).finally(function(){ $('#syncNote').classList.add('hidden'); });
 }
 
 /* ================= views ================= */
@@ -547,6 +569,7 @@ function matches(p){
 var PROJECT_TEXT_FIELDS=['name','org','contactName','email','phone','service','source','tags','nextStep','liveUrl','adminUrl','repoUrl','domain','hosting','backend','integrations','architecture','scope','notes'];
 
 function render(keepFocus){
+  clearTimeout(render._c); render._c=setTimeout(saveCache, 400);
   var v=S.view, html='';
   var ms='<div class="mobile-search"><input type="search" id="q2" placeholder="Search…" value="'+esc(S.q)+'"><span class="mscope"><button data-scope="client"'+(S.scope==='client'?' class="on"':'')+'>Clients</button><button data-scope="all"'+(S.scope==='all'?' class="on"':'')+'>All</button></span></div>';
   if(v==='dash') html=ms+renderDash();

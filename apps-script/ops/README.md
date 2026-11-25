@@ -51,6 +51,12 @@ When the signed copy comes back, upload it as **Executed contract**. That fills 
 ### Client handoff guide
 **Spec / handoff → Client handoff** leaves out money, contacts and anything under an architecture heading that contains "Internal".
 
+## Speed update (Nov 2026)
+
+`/admin` now opens instantly with the last data it loaded, then refreshes in the background ("Syncing…" in the header).
+To make the refresh itself faster, paste the new `Code.gs` into Apps Script, save, and redeploy:
+**Deploy → Manage deployments → ✏️ → Version: New version → Deploy**. The URL stays the same. No setup() run needed.
+
 ## What's where
 
 | Tab / place | Holds |
