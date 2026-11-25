@@ -57,6 +57,14 @@ When the signed copy comes back, upload it as **Executed contract**. That fills 
 To make the refresh itself faster, paste the new `Code.gs` into Apps Script, save, and redeploy:
 **Deploy → Manage deployments → ✏️ → Version: New version → Deploy**. The URL stays the same. No setup() run needed.
 
+## Pricing update (Nov 2026)
+
+`/admin` has a **Pricing** tab: an offerings catalog with build, edit and process hours, an hourly rate, and a calculated price per offering. You can set a fixed price to override the calculated one, add a monthly fee, archive offerings, and edit the process steps that every project includes.
+
+To turn it on, paste the new `Code.gs` into Apps Script, save, then go to **Deploy → Manage deployments → ✏️ → Version: New version → Deploy**.
+On the first load after that, the backend creates an `Offerings` tab and seeds it with 17 starter offerings. It only seeds when the tab is empty.
+The hourly rate, rounding and process steps are stored in Script Properties (`PRICE_RATE`, `PRICE_ROUND`, `PRICE_PROCESS`).
+
 ## What's where
 
 | Tab / place | Holds |
@@ -66,6 +74,7 @@ To make the refresh itself faster, paste the new `Code.gs` into Apps Script, sav
 | `Files` | Contracts and docs: kind, date, Drive link |
 | `Payments` | Each payment: date, amount, method, invoice # |
 | `Health` | Latest result for each monitored URL (rewritten each run) |
+| `Offerings` | Pricing catalog: name, type, build/edit/shelf hours, set price, monthly fee, status, notes |
 | Drive folder | The uploaded files themselves (private to your account) |
 
 You can also edit the Sheet directly. Add columns if you like, and the app keeps them.

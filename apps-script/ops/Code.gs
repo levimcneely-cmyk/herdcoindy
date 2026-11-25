@@ -30,9 +30,9 @@ var TAB_PAYMENTS = 'Payments';
 var TAB_HEALTH = 'Health';
 var PAYMENT_FIELDS = ['id', 'projectId', 'date', 'amount', 'method', 'invoice', 'note', 'ts'];
 var HEALTH_FIELDS = ['projectId', 'name', 'url', 'kind', 'ok', 'code', 'detail', 'checkedAt'];
-var SCHEMA_VERSION = '2';
+var SCHEMA_VERSION = '3';
 var FILE_FIELDS = ['id', 'projectId', 'ts', 'kind', 'name', 'date', 'url', 'driveId', 'mime', 'size'];
-var NUMBER_FIELDS = { value: 1, deposit: 1, paid: 1, monthly: 1, amount: 1 };
+var NUMBER_FIELDS = { value: 1, deposit: 1, paid: 1, monthly: 1, amount: 1, buildHrs: 1, editHrs: 1, shelfHrs: 1, priceOverride: 1, monthlyFee: 1, sort: 1 };
 var STAGES = ['lead', 'discussion', 'future', 'contract', 'live', 'closed'];
 
 var MAX_FAILS = 10, LOCK_MINUTES = 15;
@@ -62,6 +62,7 @@ function setup() {
   ensureTab_(ss, TAB_FILES, FILE_FIELDS);
   ensureTab_(ss, TAB_PAYMENTS, PAYMENT_FIELDS);
   ensureTab_(ss, TAB_HEALTH, HEALTH_FIELDS);
+  ensureOfferings_(ss);
   inferTypes_();
   var p = PropertiesService.getScriptProperties();
   p.setProperty('SCHEMA', SCHEMA_VERSION);
@@ -202,6 +203,9 @@ function route_(req) {
     if (a === 'createContractTemplate') return { ok: true, settings: createContractTemplate_() };
     if (a === 'saveSettings') return { ok: true, settings: saveSettings_(req.settings || {}) };
     if (a === 'installTriggers') { installTriggers(); return { ok: true, settings: getSettings_() }; }
+    if (a === 'saveOffering') return { ok: true, offering: saveOffering_(req.offering) };
+    if (a === 'deleteOffering') { deleteRow_(TAB_OFFERINGS, req.id); return { ok: true }; }
+    if (a === 'savePricing') return { ok: true, pricing: savePricing_(req.pricing || {}) };
     throw new Error('Unknown action');
   });
 }
@@ -291,6 +295,7 @@ function bootstrap_() {
   return {
     ok: true, projects: readTabFast_(TAB_PROJECTS), log: readTabFast_(TAB_LOG), files: readTabFast_(TAB_FILES),
     payments: readTabFast_(TAB_PAYMENTS), health: readTabFast_(TAB_HEALTH), settings: getSettings_(props),
+    offerings: readTabFast_(TAB_OFFERINGS), pricing: getPricing_(props),
     folderUrl: folderUrl, sheetUrl: sheetUrl
   };
 }
@@ -442,6 +447,7 @@ function ensureSchema_() {
     ensureTab_(ss, TAB_LOG, LOG_FIELDS);
     ensureTab_(ss, TAB_PAYMENTS, PAYMENT_FIELDS);
     ensureTab_(ss, TAB_HEALTH, HEALTH_FIELDS);
+    ensureOfferings_(ss);
     inferTypes_();
     p.setProperty('SCHEMA', SCHEMA_VERSION);
   });
@@ -966,4 +972,106 @@ function sendContract_(req) {
     return r;
   });
   return { ok: true, file: rec, project: readTab_(TAB_PROJECTS).filter(function (x) { return String(x.id) === String(f.projectId); })[0] };
+}
+
+/* =====================================================================
+   v3: Pricing — offerings catalog + process steps + hourly rate
+   ===================================================================== */
+
+var TAB_OFFERINGS = 'Offerings';
+var OFFERING_FIELDS = ['id', 'name', 'kind', 'buildHrs', 'editHrs', 'shelfHrs', 'priceOverride', 'monthlyFee', 'status', 'notes', 'sort', 'updated'];
+var OFFERING_KINDS = ['Ready-made', 'Custom'];
+
+var DEFAULT_PROCESS = [
+  { name: '15-min intro consult (virtual)', hrs: 0.25 },
+  { name: '1-hour discovery', hrs: 1 },
+  { name: 'Travel for discovery (round trip)', hrs: 1 },
+  { name: 'Proposal and contract', hrs: 0.5 },
+  { name: 'Initial product presentation', hrs: 1 },
+  { name: 'Final product presentation', hrs: 1 },
+  { name: 'Recorded walk-through and handoff guide', hrs: 1 }
+];
+
+// name, kind, build+deploy hrs, edit-round hrs, one-time shelf hrs, notes
+var SEED_OFFERINGS = [
+  ['Instant Lead Responder', 'Ready-made', 2, 0.5, 0, 'Built Nov 25. Form, auto-reply, owner alert, Leads Sheet'],
+  ['Follow-Up Digest', 'Ready-made', 1.5, 0.5, 4, 'Daily or Monday email of who is due a call; reads the Leads tab'],
+  ['Starter Site (up to 5 pages)', 'Ready-made', 5, 2, 8, 'Client content, domain and DNS take most of the time'],
+  ['Answer Desk (FAQ + AI chat)', 'Ready-made', 4, 1.5, 12, 'Collecting FAQs and price ranges; AI usage billed monthly'],
+  ['Ops Hub (jobs and pipeline + admin)', 'Ready-made', 8, 2, 10, 'From the herdcoindy.com/admin and Apex patterns'],
+  ['Missed-Call Text-Back', 'Ready-made', 3, 0.5, 8, 'A2P 10DLC carrier registration takes 2-4 weeks; Twilio billed monthly'],
+  ['Event app with hidden admin', 'Custom', 10, 2, '', 'Like the RBC Staff Retreat app'],
+  ['Club website + event signup app', 'Custom', 12, 2, '', 'Like Dads Club site and Trunk or Treat app'],
+  ['Organization website overhaul', 'Custom', 12, 2, '', 'Like the Eagle Trace HOA site; content migration varies'],
+  ['Job application landing page', 'Custom', 3, 1, '', 'Like Patterson Collective /apply'],
+  ['Transaction / operations management app', 'Custom', 18, 3, '', 'Like Patterson Collective /transactions'],
+  ['Field project-management app', 'Custom', 24, 3, '', 'Like Apex Field Jobs; mobile-first'],
+  ['Automated weekly email pipeline', 'Custom', 12, 2, '', 'Like Tribal Training athlete emails'],
+  ['Board / grant review dashboard', 'Custom', 14, 2, '', 'Like the JCREMC Operation Round-Up site'],
+  ['Team race-day tracker + logistics', 'Custom', 14, 2, '', 'Like TSP27'],
+  ['Conference agenda app with shared picks', 'Custom', 10, 2, '', 'Like the TechAdvantage agenda app'],
+  ['Team travel itinerary builder', 'Custom', 12, 2, '', 'Like the NRTC Logistics Hub']
+];
+
+/** Create the Offerings tab and seed it once (only when it has no rows). */
+function ensureOfferings_(ss) {
+  var s = ensureTab_(ss, TAB_OFFERINGS, OFFERING_FIELDS);
+  if (s.getLastRow() > 1) return s;
+  var head = headers_(s), now = nowIso_();
+  var rows = SEED_OFFERINGS.map(function (o, i) {
+    var obj = { id: newId_('o'), name: o[0], kind: o[1], buildHrs: o[2], editHrs: o[3], shelfHrs: o[4], priceOverride: '',
+      monthlyFee: '', status: 'active', notes: o[5], sort: i + 1, updated: now };
+    return head.map(function (h) { return h in obj ? obj[h] : ''; });
+  });
+  s.getRange(2, 1, rows.length, head.length).setValues(rows);
+  return s;
+}
+
+function getPricing_(props) {
+  props = props || PropertiesService.getScriptProperties().getProperties();
+  var steps = DEFAULT_PROCESS;
+  try { if (props.PRICE_PROCESS) steps = JSON.parse(props.PRICE_PROCESS); } catch (e) {}
+  return {
+    rate: props.PRICE_RATE ? Number(props.PRICE_RATE) : 100,
+    roundTo: props.PRICE_ROUND ? Number(props.PRICE_ROUND) : 50,
+    process: steps
+  };
+}
+
+function savePricing_(pr) {
+  var p = PropertiesService.getScriptProperties();
+  if ('rate' in pr) {
+    var r = Number(pr.rate);
+    if (!(r >= 0 && r < 100000)) throw new Error('Hourly rate must be a number.');
+    p.setProperty('PRICE_RATE', String(r));
+  }
+  if ('roundTo' in pr) {
+    var n = Number(pr.roundTo);
+    if (!(n >= 0 && n <= 10000)) throw new Error('Round-to must be a number.');
+    p.setProperty('PRICE_ROUND', String(n));
+  }
+  if ('process' in pr) {
+    if (!Array.isArray(pr.process) || pr.process.length > 40) throw new Error('Bad process steps.');
+    var clean = pr.process.map(function (x) {
+      var h = Number(x && x.hrs);
+      return { name: String(x && x.name || '').slice(0, 120), hrs: isNaN(h) || h < 0 ? 0 : Math.min(h, 1000) };
+    }).filter(function (x) { return x.name; });
+    p.setProperty('PRICE_PROCESS', JSON.stringify(clean));
+  }
+  return getPricing_();
+}
+
+function saveOffering_(o) {
+  if (!o || !String(o.name || '').trim()) throw new Error('Give the offering a name.');
+  if (o.kind && OFFERING_KINDS.indexOf(o.kind) < 0) throw new Error('Type must be Ready-made or Custom.');
+  ['buildHrs', 'editHrs', 'shelfHrs', 'priceOverride', 'monthlyFee'].forEach(function (k) {
+    if (k in o && o[k] !== '' && o[k] !== null && (isNaN(Number(o[k])) || Number(o[k]) < 0)) throw new Error(k + ' must be a number of 0 or more.');
+  });
+  var obj = Object.assign({}, o, { updated: nowIso_() });
+  if (!obj.id) {
+    obj.id = newId_('o');
+    if (!obj.status) obj.status = 'active';
+    if (obj.sort === undefined || obj.sort === '') obj.sort = readTab_(TAB_OFFERINGS).length + 1;
+  }
+  return writeObj_(TAB_OFFERINGS, obj, OFFERING_FIELDS);
 }

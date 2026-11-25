@@ -305,6 +305,24 @@
     .modal .acts .btn{flex:1;justify-content:center}
     #toast{bottom:calc(84px + env(safe-area-inset-bottom));max-width:90vw;text-align:center}
   }
+  /* pricing */
+  .num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  th.num{text-align:right}
+  .price{font-weight:700;color:var(--green)}
+  td .tbadge{white-space:nowrap}
+  .kind-ready{color:var(--green);border-color:#bcd3c2;background:var(--soft)}
+  .kind-custom{color:var(--blue);border-color:#c3d3e3;background:#eef3f8}
+  tr.archived td{opacity:.55}
+  .steps{list-style:none;margin:8px 0 0;padding:0}
+  .steps li{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line);font-size:.95rem}
+  .steps li:first-child{border-top:0}
+  .steps li.tot{font-weight:700;color:var(--green);border-top:2px solid var(--line)}
+  .stepedit{display:grid;grid-template-columns:1fr 86px 34px;gap:8px;align-items:center;margin-bottom:8px}
+  .stepedit button{background:none;border:1px solid var(--line);border-radius:8px;height:38px;cursor:pointer;color:var(--muted);font-size:1.1rem}
+  .preview{margin-top:14px;padding:12px 14px;background:var(--soft);border-radius:10px;font-size:.95rem}
+  .preview b{color:var(--green)}
+  .pcols{display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start}
+  @media (max-width:1000px){.pcols{grid-template-columns:1fr}}
   footer.ft{border-top:1px solid var(--line);padding:22px 18px;color:var(--muted);font-size:.85rem;display:flex;gap:12px;align-items:center;justify-content:center}
   footer.ft img{height:24px}
 </style>
@@ -353,6 +371,7 @@
       <button data-view="board">Pipeline</button>
       <button data-view="sites">Sites</button>
       <button data-view="all">All projects</button>
+      <button data-view="pricing">Pricing</button>
       <span class="scope" id="scope"><button data-scope="client">Clients</button><button data-scope="all">Everything</button></span>
     </nav>
   </header>
@@ -433,7 +452,8 @@ var SITE_KIT_TEMPLATE = [
 ].join('\n');
 
 /* ================= state ================= */
-var S = { projects:[], log:[], files:[], payments:[], health:[], settings:{}, sheetUrl:'', folderUrl:'', view:'dash', q:'', sort:{k:'updated',dir:-1}, stageFilter:'open', scope:'client' };
+var S = { projects:[], log:[], files:[], payments:[], health:[], settings:{}, sheetUrl:'', folderUrl:'', view:'dash', q:'', sort:{k:'updated',dir:-1}, stageFilter:'open', scope:'client',
+  offerings:[], pricing:{rate:100, roundTo:50, process:[]}, kindFilter:'active', psort:{k:'sort',dir:1} };
 try{ localStorage.removeItem('herdOpsScope'); }catch(e){} // always open on Clients
 var D = null; // drawer state {id, draft, tab, dirty}
 
@@ -494,7 +514,7 @@ function clearToken(){ try{ localStorage.removeItem(TOKEN_KEY); sessionStorage.r
 var CACHE_KEY='herdOpsCache';
 function cacheStore(){ try{ return localStorage.getItem(TOKEN_KEY)?localStorage:sessionStorage; }catch(e){ return null; } }
 function readCache(){ try{ var st=cacheStore(), raw=st&&st.getItem(CACHE_KEY); return raw?JSON.parse(raw):null; }catch(e){ return null; } }
-function saveCache(){ try{ var st=cacheStore(); if(!st||!getToken()) return; st.setItem(CACHE_KEY, JSON.stringify({projects:S.projects,log:S.log,files:S.files,payments:S.payments,health:S.health,settings:S.settings,sheetUrl:S.sheetUrl,folderUrl:S.folderUrl})); }catch(e){} }
+function saveCache(){ try{ var st=cacheStore(); if(!st||!getToken()) return; st.setItem(CACHE_KEY, JSON.stringify({projects:S.projects,log:S.log,files:S.files,payments:S.payments,health:S.health,settings:S.settings,sheetUrl:S.sheetUrl,folderUrl:S.folderUrl,offerings:S.offerings,pricing:S.pricing})); }catch(e){} }
 function clearCache(){ try{ localStorage.removeItem(CACHE_KEY); sessionStorage.removeItem(CACHE_KEY); }catch(e){} }
 function api(action, data){
   var body = Object.assign({action:action, token:getToken()}, data||{});
@@ -531,6 +551,7 @@ $('#loginForm').onsubmit=function(e){
 function applyData(j){
   S.projects=j.projects||[]; S.log=j.log||[]; S.files=j.files||[]; S.payments=j.payments||[]; S.health=j.health||[]; S.settings=j.settings||{};
   S.sheetUrl=j.sheetUrl||''; S.folderUrl=j.folderUrl||'';
+  S.offerings=j.offerings||[]; if(j.pricing) S.pricing=j.pricing;
   $('#sheetLink').href=S.sheetUrl||'#'; $('#folderLink').href=S.folderUrl||'#';
 }
 function boot(){
@@ -576,12 +597,14 @@ function render(keepFocus){
   if(v==='board') html=ms+renderBoard();
   if(v==='sites') html=ms+renderSites();
   if(v==='all') html=ms+renderAll();
+  if(v==='pricing') html=ms+renderPricing();
   var focused = document.activeElement && document.activeElement.id==='q2';
   $('#main').innerHTML=html;
   var q2=$('#q2'); if(q2){ q2.oninput=function(){ S.q=this.value; $('#q').value=this.value; if(S.view==='dash'&&S.q){ S.view='all'; $$('#tabs button').forEach(function(x){ x.classList.toggle('on',x.dataset.view==='all'); }); } render(true); }; if(focused&&keepFocus){ q2.focus(); q2.setSelectionRange(q2.value.length,q2.value.length); } }
   $$('[data-open]').forEach(function(el){ el.onclick=function(){ openProject(el.dataset.open); }; });
   $$('.mscope button').forEach(function(b){ b.onclick=function(){ S.scope=b.dataset.scope; paintScope(); render(); }; });
   if(v==='board') wireBoard();
+  if(v==='pricing') wirePricing();
   if(v==='all'){
     $$('th[data-sort]').forEach(function(th){ th.onclick=function(){ var k=th.dataset.sort; S.sort = S.sort.k===k?{k:k,dir:-S.sort.dir}:{k:k,dir:1}; render(); }; });
     var sf=$('#stageFilter'); if(sf) sf.onchange=function(){ S.stageFilter=this.value; render(); };
@@ -1197,6 +1220,143 @@ function md(src){
   if(code!==null) out.push('<pre><code>'+esc(code.join('\n'))+'</code></pre>');
   close();
   return out.join('');
+}
+
+/* ================= pricing ================= */
+var OFFER_KINDS=['Ready-made','Custom'];
+function processHrs(){ return (S.pricing.process||[]).reduce(function(t,x){ return t+num(x.hrs); },0); }
+function hrs(n){ n=Math.round(num(n)*100)/100; return n.toLocaleString(undefined,{maximumFractionDigits:2}); }
+function offerTotal(o){ return num(o.buildHrs)+num(o.editHrs)+processHrs(); }
+function computedPrice(o){ var raw=offerTotal(o)*num(S.pricing.rate), r=num(S.pricing.roundTo); return r>0?Math.round(raw/r)*r:Math.round(raw*100)/100; }
+function offerPrice(o){ return num(o.priceOverride)>0?num(o.priceOverride):computedPrice(o); }
+function isArchived(o){ return String(o.status||'').toLowerCase()==='archived'; }
+function offerById(id){ return S.offerings.filter(function(o){ return String(o.id)===String(id); })[0]; }
+function kindBadge(k){ return '<span class="tbadge '+(k==='Custom'?'kind-custom':'kind-ready')+'" style="margin-left:0">'+esc(k||'—')+'</span>'; }
+function offerMatches(o){ if(!S.q) return true; return [o.name,o.kind,o.notes].join(' ').toLowerCase().indexOf(S.q.toLowerCase())>=0; }
+function visibleOfferings(){
+  var f=S.kindFilter;
+  var O=S.offerings.filter(offerMatches).filter(function(o){
+    if(f==='archived') return isArchived(o);
+    if(isArchived(o)) return false;
+    return f==='active' || o.kind===f;
+  });
+  var k=S.psort.k, dir=S.psort.dir;
+  var val=function(o){ return k==='total'?offerTotal(o):k==='price'?offerPrice(o):k==='name'?String(o.name||'').toLowerCase():k==='kind'?String(o.kind||''):num(o[k]); };
+  return O.sort(function(a,b){ var x=val(a), y=val(b); return (x<y?-1:x>y?1:0)*dir || num(a.sort)-num(b.sort); });
+}
+function priceRange(kind){
+  var P=S.offerings.filter(function(o){ return !isArchived(o) && o.kind===kind; }).map(offerPrice);
+  if(!P.length) return '—';
+  var lo=Math.min.apply(null,P), hi=Math.max.apply(null,P);
+  return lo===hi?money(lo):money(lo)+'–'+money(hi);
+}
+function renderPricing(){
+  var O=visibleOfferings(), ph=processHrs();
+  var shelfLeft=S.offerings.filter(function(o){ return !isArchived(o) && o.kind==='Ready-made'; }).reduce(function(t,o){ return t+num(o.shelfHrs); },0);
+  var th=function(k,l,cls){ return '<th data-psort="'+k+'"'+(cls?' class="'+cls+'"':'')+'>'+l+(S.psort.k===k?(S.psort.dir>0?' ▲':' ▼'):'')+'</th>'; };
+  var opts=[['active','All active'],['Ready-made','Ready-made'],['Custom','Custom'],['archived','Archived']].map(function(x){ return '<option value="'+x[0]+'"'+(S.kindFilter===x[0]?' selected':'')+'>'+x[1]+'</option>'; }).join('');
+  var head='<div class="toolbar"><h2>Pricing</h2><select id="kindFilter" style="width:auto">'+opts+'</select><span class="muted small">'+O.length+' shown</span><span style="flex:1"></span>'+
+    '<button class="btn ghost sm" id="editProcess">Rate &amp; process</button><button class="btn sm" id="newOffer">+ Offering</button></div>';
+  var kpis='<div class="kpis">'+
+    kpi('Hourly rate', money(S.pricing.rate), num(S.pricing.roundTo)>0?'Prices round to nearest '+money(S.pricing.roundTo):'No rounding')+
+    kpi('Process per project', hrs(ph)+' hrs', (S.pricing.process||[]).length+' steps, every project')+
+    kpi('Ready-made', priceRange('Ready-made'), hrs(shelfLeft)+' hrs of shelf work left')+
+    kpi('Custom', priceRange('Custom'), 'per project at current rate')+'</div>';
+  var body;
+  if(!S.offerings.length) body='<div class="card"><p class="empty">No offerings yet. If you just updated the backend, redeploy it as a New version, then Refresh data. Or add one with “+ Offering”.</p></div>';
+  else if(!O.length) body='<div class="card"><p class="empty">Nothing in this view.</p></div>';
+  else if(isNarrow()) body=O.map(function(o){
+    return '<div class="mcard" data-offer="'+esc(o.id)+'"><div class="mrow"><b>'+esc(o.name)+'</b><span class="price">'+money(offerPrice(o))+'</span></div>'+
+      '<div class="muted small">'+kindBadge(o.kind)+' '+hrs(offerTotal(o))+' hrs total · '+hrs(o.buildHrs)+' build · '+hrs(o.editHrs)+' edits'+(num(o.monthlyFee)?' · '+money(o.monthlyFee)+'/mo':'')+'</div>'+
+      (o.notes?'<div class="muted small">'+esc(o.notes)+'</div>':'')+'</div>';
+  }).join('');
+  else body='<div class="tablewrap"><table><thead><tr>'+th('name','Offering')+th('kind','Type')+th('buildHrs','Build &amp; deploy','num')+th('editHrs','Edits','num')+'<th class="num">Process</th>'+th('total','Total hrs','num')+th('price','Price','num')+th('monthlyFee','$/mo','num')+th('shelfHrs','Shelf hrs','num')+'</tr></thead><tbody>'+
+    O.map(function(o){
+      var ov=num(o.priceOverride)>0;
+      return '<tr data-offer="'+esc(o.id)+'"'+(isArchived(o)?' class="archived"':'')+' style="cursor:pointer"><td><b>'+esc(o.name)+'</b>'+(o.notes?'<div class="muted small">'+esc(o.notes)+'</div>':'')+'</td><td>'+kindBadge(o.kind)+'</td>'+
+        '<td class="num">'+hrs(o.buildHrs)+'</td><td class="num">'+hrs(o.editHrs)+'</td><td class="num muted">'+hrs(ph)+'</td><td class="num"><b>'+hrs(offerTotal(o))+'</b></td>'+
+        '<td class="num"><span class="price">'+money(offerPrice(o))+'</span>'+(ov?'<div class="muted small" title="Calculated price">set · calc '+money(computedPrice(o))+'</div>':'')+'</td>'+
+        '<td class="num">'+(num(o.monthlyFee)?money(o.monthlyFee):'')+'</td><td class="num muted">'+(o.kind==='Ready-made'&&o.shelfHrs!==''?hrs(o.shelfHrs):'')+'</td></tr>';
+    }).join('')+'</tbody></table></div>';
+  var steps='<div class="card"><h3>Every project includes</h3><ul class="steps">'+(S.pricing.process||[]).map(function(x){ return '<li><span>'+esc(x.name)+'</span><span class="num">'+hrs(x.hrs)+' hrs</span></li>'; }).join('')+
+    '<li class="tot"><span>Process total</span><span class="num">'+hrs(ph)+' hrs · '+money(ph*num(S.pricing.rate))+'</span></li></ul>'+
+    '<p class="hint">Price = (build + edits + process) × rate'+(num(S.pricing.roundTo)>0?', rounded to '+money(S.pricing.roundTo):'')+'. A set price overrides it.</p>'+
+    '<div style="margin-top:12px"><button class="btn ghost sm" id="editProcess2">Edit rate &amp; process</button></div></div>';
+  return head+kpis+'<div class="pcols"><div>'+body+'</div>'+steps+'</div>';
+}
+function wirePricing(){
+  var kf=$('#kindFilter'); if(kf) kf.onchange=function(){ S.kindFilter=this.value; render(); };
+  $$('[data-psort]').forEach(function(th){ th.onclick=function(){ var k=th.dataset.psort; S.psort=S.psort.k===k?{k:k,dir:-S.psort.dir}:{k:k,dir:(k==='name'||k==='kind'?1:-1)}; render(); }; });
+  $$('[data-offer]').forEach(function(el){ el.onclick=function(){ openOffering(el.dataset.offer); }; });
+  $('#newOffer').onclick=function(){ openOffering(null); };
+  $('#editProcess').onclick=openProcess; $('#editProcess2').onclick=openProcess;
+}
+function openOffering(id){
+  var o=id?offerById(id):{kind:'Custom', status:'active'}; if(!o) return;
+  var f=function(k,label,attrs){ return '<label class="f">'+label+'<input type="number" min="0" step="0.25" id="of_'+k+'" value="'+esc(o[k]===undefined?'':o[k])+'"'+(attrs||'')+'></label>'; };
+  modal('<h2>'+(id?'Edit offering':'New offering')+'</h2><div class="grid">'+
+    '<label class="f span3">Name<input type="text" id="of_name" value="'+esc(o.name||'')+'" placeholder="e.g. Booking page with deposits"></label>'+
+    '<label class="f">Type<select id="of_kind">'+OFFER_KINDS.map(function(k){ return '<option'+(o.kind===k?' selected':'')+'>'+k+'</option>'; }).join('')+'</select></label>'+
+    '<label class="f">Status<select id="of_status"><option value="active"'+(!isArchived(o)?' selected':'')+'>Active</option><option value="archived"'+(isArchived(o)?' selected':'')+'>Archived</option></select></label>'+
+    f('buildHrs','Build &amp; deploy hrs')+f('editHrs','Edit round hrs')+
+    f('priceOverride','Set price ($, optional)',' step="50" placeholder="Use calculated"')+f('monthlyFee','Monthly fee ($, optional)',' step="5"')+
+    '<label class="f span3" id="of_shelfWrap">One-time shelf build hrs<input type="number" min="0" step="0.5" id="of_shelfHrs" value="'+esc(o.shelfHrs===undefined?'':o.shelfHrs)+'"></label>'+
+    '<label class="f span3">Notes<textarea id="of_notes" rows="3">'+esc(o.notes||'')+'</textarea></label>'+
+    '</div><div class="preview" id="of_preview"></div><p class="err" id="mErr"></p><div class="acts">'+(id?'<button class="btn danger" id="of_del" style="margin-right:auto">Delete</button>':'')+'<button class="btn ghost" data-close>Cancel</button><button class="btn" id="of_save">'+(id?'Save':'Add')+'</button></div>');
+  var read=function(){ return {id:id||'', name:$('#of_name').value.trim(), kind:$('#of_kind').value, status:$('#of_status').value,
+    buildHrs:$('#of_buildHrs').value, editHrs:$('#of_editHrs').value, shelfHrs:$('#of_shelfHrs').value,
+    priceOverride:$('#of_priceOverride').value, monthlyFee:$('#of_monthlyFee').value, notes:$('#of_notes').value.trim()}; };
+  var paint=function(){
+    var x=read(), t=offerTotal(x), c=computedPrice(x);
+    $('#of_shelfWrap').classList.toggle('hidden', x.kind!=='Ready-made');
+    $('#of_preview').innerHTML=hrs(x.buildHrs)+' build + '+hrs(x.editHrs)+' edits + '+hrs(processHrs())+' process = <b>'+hrs(t)+' hrs</b> → <b>'+money(c)+'</b> at '+money(S.pricing.rate)+'/hr'+
+      (num(x.priceOverride)>0?'<br>Quoting <b>'+money(x.priceOverride)+'</b> (set price, '+(num(x.priceOverride)>=c?'+':'−')+money(Math.abs(num(x.priceOverride)-c))+' vs calculated)':'')+
+      (num(x.monthlyFee)>0?'<br>Plus '+money(x.monthlyFee)+'/mo':'');
+  };
+  $$('#modal input,#modal select').forEach(function(el){ el.oninput=paint; el.onchange=paint; }); paint();
+  if(!id) $('#of_name').focus();
+  $('#of_save').onclick=function(){
+    var x=read(); if(!x.name){ $('#mErr').textContent='Give it a name.'; return; }
+    if(x.kind!=='Ready-made' && !id) x.shelfHrs='';
+    if(!id) delete x.id;
+    var b=this; b.disabled=true; b.textContent='Saving…';
+    api('saveOffering',{offering:x}).then(function(j){
+      var i=S.offerings.findIndex(function(z){ return String(z.id)===String(j.offering.id); });
+      if(i>=0) S.offerings[i]=j.offering; else S.offerings.push(j.offering);
+      closeModal(); render(); toast(id?'Saved':'Offering added');
+    }).catch(function(e){ b.disabled=false; b.textContent=id?'Save':'Add'; if(e.message!=='signed out') $('#mErr').textContent=e.message; });
+  };
+  var del=$('#of_del'); if(del) del.onclick=function(){
+    if(!confirm('Delete “'+o.name+'”? To keep it out of view but saved, set Status to Archived instead.')) return;
+    del.disabled=true;
+    api('deleteOffering',{id:id}).then(function(){ S.offerings=S.offerings.filter(function(z){ return String(z.id)!==String(id); }); closeModal(); render(); toast('Deleted'); })
+      .catch(function(e){ del.disabled=false; if(e.message!=='signed out') $('#mErr').textContent=e.message; });
+  };
+}
+function openProcess(){
+  var steps=(S.pricing.process||[]).map(function(x){ return {name:x.name, hrs:x.hrs}; });
+  modal('<h2>Rate &amp; process</h2><div class="grid">'+
+    '<label class="f">Hourly rate ($)<input type="number" min="0" step="5" id="pr_rate" value="'+esc(S.pricing.rate)+'"></label>'+
+    '<label class="f">Round prices to ($)<input type="number" min="0" step="10" id="pr_round" value="'+esc(S.pricing.roundTo)+'"></label></div>'+
+    '<div class="section" style="margin:18px 0 0"><h3>Process steps (every project)</h3><div id="pr_steps" style="margin-top:10px"></div>'+
+    '<button class="btn ghost sm" id="pr_add" type="button">+ Add step</button><div class="preview" id="pr_total"></div></div>'+
+    '<p class="err" id="mErr"></p><div class="acts"><button class="btn ghost" data-close>Cancel</button><button class="btn" id="pr_save">Save</button></div>');
+  var paint=function(){
+    $('#pr_steps').innerHTML=steps.map(function(x,i){ return '<div class="stepedit"><input type="text" data-i="'+i+'" data-k="name" value="'+esc(x.name)+'" aria-label="Step name"><input type="number" min="0" step="0.25" data-i="'+i+'" data-k="hrs" value="'+esc(x.hrs)+'" aria-label="Hours"><button type="button" data-rm="'+i+'" aria-label="Remove step">×</button></div>'; }).join('')||'<p class="empty">No steps.</p>';
+    $$('#pr_steps input').forEach(function(el){ el.oninput=function(){ steps[+el.dataset.i][el.dataset.k]=el.value; total(); }; });
+    $$('#pr_steps [data-rm]').forEach(function(b){ b.onclick=function(){ steps.splice(+b.dataset.rm,1); paint(); }; });
+    total();
+  };
+  var total=function(){ var t=steps.reduce(function(s,x){ return s+num(x.hrs); },0); $('#pr_total').innerHTML='Process total: <b>'+hrs(t)+' hrs</b> = <b>'+money(t*num($('#pr_rate').value))+'</b> on every project'; };
+  $('#pr_rate').oninput=total;
+  $('#pr_add').onclick=function(){ steps.push({name:'', hrs:0.5}); paint(); var ins=$$('#pr_steps input[data-k="name"]'); ins[ins.length-1].focus(); };
+  paint();
+  $('#pr_save').onclick=function(){
+    var clean=steps.map(function(x){ return {name:String(x.name||'').trim(), hrs:num(x.hrs)}; }).filter(function(x){ return x.name; });
+    var b=this; b.disabled=true; b.textContent='Saving…';
+    api('savePricing',{pricing:{rate:num($('#pr_rate').value), roundTo:num($('#pr_round').value), process:clean}}).then(function(j){ S.pricing=j.pricing; closeModal(); render(); toast('Rate & process saved'); })
+      .catch(function(e){ b.disabled=false; b.textContent='Save'; if(e.message!=='signed out') $('#mErr').textContent=e.message; });
+  };
 }
 
 /* ================= modals ================= */
