@@ -429,7 +429,7 @@ function deleteFile_(id) {
    ===================================================================== */
 
 var ADMIN_URL = 'https://herdcoindy.com/admin/';
-var PROVIDER = 'Hoosier Prairie Holdings, LLC d/b/a Herd Co Indy';
+var PROVIDER = 'Herd Co Indy LLC';
 var OWN_DOMAINS = ['herdcoindy.com', 'bluffroadbikeco.com'];
 
 function ensureSchema_() {
@@ -711,7 +711,7 @@ function weeklyDigest() {
 /* ---------------- contracts ---------------- */
 
 var CONTRACT_KEYS = [
-  ['provider', 'Hoosier Prairie Holdings, LLC d/b/a Herd Co Indy'], ['client', 'Client / project name'], ['org', 'Organization'],
+  ['provider', 'Herd Co Indy LLC'], ['client', 'Client / project name'], ['org', 'Organization'],
   ['contactName', 'Client contact'], ['email', 'Client email'], ['phone', 'Client phone'], ['service', 'Service'],
   ['scope', 'What we\'re building'], ['value', 'Contract value ($)'], ['deposit', 'Deposit ($)'], ['balance', 'Value minus deposit ($)'],
   ['monthly', 'Recurring ($/mo)'], ['deliveryDue', 'Delivery date'], ['date', 'Today\'s date'], ['liveUrl', 'Live URL'], ['domain', 'Domain']
@@ -771,42 +771,42 @@ var NOTES_START = 'TEMPLATE NOTES', NOTES_END = 'END OF TEMPLATE NOTES';
 function agreementOutline_() {
   return [
     ['title', 'Client Project Agreement'],
-    ['p', 'This Client Project Agreement (the “Agreement”) is made on {{date}} between Hoosier Prairie Holdings, LLC d/b/a Herd Co Indy, an Indiana limited liability company (“Herd Co.”), and {{org}} (“Client”).'],
+    ['p', 'This Client Project Agreement (the “Agreement”) is made on {{date}} between Herd Co Indy LLC, an Indiana limited liability company, and {{org}} (“Client”).'],
     ['p', 'Client contact: {{contactName}} · {{email}} · {{phone}}'],
 
     ['h', '1. The project'],
-    ['p', 'Herd Co. will build {{client}} ({{service}}) for Client. The work includes:'],
+    ['p', 'Herd Co Indy LLC will build {{client}} ({{service}}) for Client. The work includes:'],
     ['p', '{{scope}}'],
     ['p', 'Anything not listed above is outside this Agreement. New requests are handled under section 7 (Changes).'],
 
     ['h', '2. How we work'],
     ['b', 'Consult: we confirm how Client’s group runs, what the project must do, and what “done” means.'],
-    ['b', 'Deploy: Herd Co. sets up the project on Client’s own accounts with Client’s name, colors, content and domain.'],
+    ['b', 'Deploy: Herd Co Indy LLC sets up the project on Client’s own accounts with Client’s name, colors, content and domain.'],
     ['b', 'Test and validate: we walk through it together on real phones and computers and fix what’s off.'],
     ['b', 'Handoff: Client receives a simple guide, admin access and full ownership of the accounts.'],
     ['p', 'Client will name one point of contact, provide content, logos and account access, and give feedback within 5 business days of a request. Delays in these items move the timeline by the same amount.'],
 
     ['h', '3. Timeline'],
-    ['p', 'Herd Co. will target delivery by {{deliveryDue}}, starting once this Agreement is signed and the deposit is received. Herd Co. will tell Client promptly if the date is at risk.'],
+    ['p', 'Herd Co Indy LLC will target delivery by {{deliveryDue}}, starting once this Agreement is signed and the deposit is received. Herd Co Indy LLC will tell Client promptly if the date is at risk.'],
 
     ['h', '4. Price and payment'],
     ['b', 'Project fee: {{value}}.'],
     ['b', 'Deposit: {{deposit}}, due when this Agreement is signed. The deposit is non-refundable once work begins.'],
     ['b', 'Balance: {{balance}}, due at handoff, within 7 days of invoice.'],
-    ['b', 'Herd Co. may pause work while an invoice is more than 14 days past due.'],
-    ['p', 'Third-party costs, such as a domain name or a paid service Client chooses, are paid by Client directly to the provider. Herd Co. will estimate these before starting and will not add them without Client’s approval.'],
+    ['b', 'Herd Co Indy LLC may pause work while an invoice is more than 14 days past due.'],
+    ['p', 'Third-party costs, such as a domain name or a paid service Client chooses, are paid by Client directly to the provider. Herd Co Indy LLC will estimate these before starting and will not add them without Client’s approval.'],
 
     ['h', '5. Your accounts, your project'],
-    ['p', 'The project runs on accounts in Client’s name (for example Google, GitHub and the domain registrar). Client keeps the passwords to those accounts. Herd Co. uses only the access it needs to build and support the project, and will remove its own access on Client’s request at any time after handoff.'],
+    ['p', 'The project runs on accounts in Client’s name (for example Google, GitHub and the domain registrar). Client keeps the passwords to those accounts. Herd Co Indy LLC uses only the access it needs to build and support the project, and will remove its own access on Client’s request at any time after handoff.'],
 
     ['h', '6. Ownership'],
-    ['p', 'Once Client has paid in full, Client owns the project built for it, including its content, data and design. Herd Co. keeps ownership of its general tools, templates, code patterns and know-how that it uses across clients, and gives Client a permanent, royalty-free license to use them as part of the project. Open-source and third-party components stay under their own licenses.'],
+    ['p', 'Once Client has paid in full, Client owns the project built for it, including its content, data and design. Herd Co Indy LLC keeps ownership of its general tools, templates, code patterns and know-how that it uses across clients, and gives Client a permanent, royalty-free license to use them as part of the project. Open-source and third-party components stay under their own licenses.'],
 
     ['h', '7. Changes'],
-    ['p', 'Requests beyond the scope in section 1 will be quoted in writing (email is fine) before any work starts. Herd Co. will not bill for extra work Client has not approved.'],
+    ['p', 'Requests beyond the scope in section 1 will be quoted in writing (email is fine) before any work starts. Herd Co Indy LLC will not bill for extra work Client has not approved.'],
 
     ['h', '8. Support after handoff'],
-    ['b', 'Fix period: for 30 days after handoff, Herd Co. will fix defects in what it built at no charge. This does not cover new features, changes made by others, or outages of third-party services.'],
+    ['b', 'Fix period: for 30 days after handoff, Herd Co Indy LLC will fix defects in what it built at no charge. This does not cover new features, changes made by others, or outages of third-party services.'],
     ['b', 'Optional care plan: {{monthly}} per month for updates, monitoring and small fixes. Month to month; either party may cancel with 30 days’ notice.'],
     ['p', 'Care plan:  ☐ Client adds the care plan     ☐ Client declines'],
 
@@ -814,23 +814,23 @@ function agreementOutline_() {
     ['p', 'If the project includes AI agents or automation, Client understands that AI output can be wrong. A person on Client’s side should review anything important before it is sent or relied on. Usage fees charged by AI providers are paid by Client.'],
 
     ['h', '10. Confidentiality and data'],
-    ['p', 'Each party will keep the other’s non-public information private and use it only for this project. Herd Co. will access Client’s data only to build and support the project, will never sell it, and will delete any copies it holds when Client asks.'],
+    ['p', 'Each party will keep the other’s non-public information private and use it only for this project. Herd Co Indy LLC will access Client’s data only to build and support the project, will never sell it, and will delete any copies it holds when Client asks.'],
 
     ['h', '11. Portfolio'],
-    ['p', 'Herd Co. may show screenshots and a general description of the project in its portfolio only with names, organizations and confidential details removed.'],
+    ['p', 'Herd Co Indy LLC may show screenshots and a general description of the project in its portfolio only with names, organizations and confidential details removed.'],
     ['p', 'Portfolio use:  ☐ Client agrees     ☐ Client does not agree'],
 
     ['h', '12. Client content'],
     ['p', 'Client confirms it has the right to use the content, images and logos it provides, and will cover any claim that such content infringes someone else’s rights.'],
 
     ['h', '13. Warranty and liability'],
-    ['p', 'Herd Co. will do the work in a professional manner. Apart from the fix period in section 8, the project is provided as-is. Herd Co. is not responsible for outages or changes at third-party services it does not control. Herd Co.’s total liability under this Agreement is limited to the fees Client has paid, and neither party is liable for indirect or lost-profit damages.'],
+    ['p', 'Herd Co Indy LLC will do the work in a professional manner. Apart from the fix period in section 8, the project is provided as-is. Herd Co Indy LLC is not responsible for outages or changes at third-party services it does not control. Herd Co Indy LLC’s total liability under this Agreement is limited to the fees Client has paid, and neither party is liable for indirect or lost-profit damages.'],
 
     ['h', '14. Ending early'],
-    ['p', 'Either party may end this Agreement with written notice. Client pays for work completed up to that date (the deposit counts toward it), and Herd Co. hands over the completed work once paid.'],
+    ['p', 'Either party may end this Agreement with written notice. Client pays for work completed up to that date (the deposit counts toward it), and Herd Co Indy LLC hands over the completed work once paid.'],
 
     ['h', '15. General'],
-    ['p', 'Herd Co. is an independent contractor. This is the entire agreement between the parties and can only be changed in writing. Indiana law governs, with courts in Johnson County, Indiana. Electronic, scanned or photographed signatures count as originals.'],
+    ['p', 'Herd Co Indy LLC is an independent contractor. This is the entire agreement between the parties and can only be changed in writing. Indiana law governs, with courts in Johnson County, Indiana. Electronic, scanned or photographed signatures count as originals.'],
 
     ['sig', '']
   ];
@@ -847,7 +847,7 @@ function brandText_(t, o) {
 }
 
 function createContractTemplate_() {
-  var doc = DocumentApp.create('Herd Co. — Client Agreement TEMPLATE');
+  var doc = DocumentApp.create('Herd Co Indy LLC — Client Agreement TEMPLATE');
   var b = doc.getBody();
   b.setMarginTop(54).setMarginBottom(54).setMarginLeft(64).setMarginRight(64);
   var first = b.getChild(0).asParagraph();
@@ -870,7 +870,7 @@ function createContractTemplate_() {
       var t = b.appendParagraph(text.toUpperCase());
       brandText_(t, { font: 'Barlow Condensed', size: 22, bold: true, color: '#163823' });
       t.setSpacingAfter(4);
-      brandText_(b.appendParagraph('The Herd Co. · Sites, apps, and agents for teams that run lean.'), { size: 10, color: '#5B665F' }).setSpacingAfter(14);
+      brandText_(b.appendParagraph('Herd Co Indy LLC · Websites, apps, and AI agents for small teams stretched thin.'), { size: 10, color: '#5B665F' }).setSpacingAfter(14);
     } else if (kind === 'h') {
       var h = b.appendParagraph(text.toUpperCase());
       brandText_(h, { font: 'Barlow Condensed', size: 13, bold: true, color: '#163823' });
@@ -885,8 +885,8 @@ function createContractTemplate_() {
       brandText_(sh, { font: 'Barlow Condensed', size: 13, bold: true, color: '#163823' });
       sh.setSpacingBefore(18).setSpacingAfter(6);
       var tbl = b.appendTable([
-        ['Herd Co.', 'Client'],
-        ['Hoosier Prairie Holdings, LLC d/b/a Herd Co Indy', '{{org}}'],
+        ['Provider', 'Client'],
+        ['Herd Co Indy LLC', '{{org}}'],
         ['Name: Levi McNeely', 'Name: {{contactName}}'],
         ['Title: Owner', 'Title:'],
         ['Signature:\n\n', 'Signature:\n\n'],
@@ -900,7 +900,7 @@ function createContractTemplate_() {
   });
 
   var foot = doc.addFooter();
-  brandText_(foot.appendParagraph('Hoosier Prairie Holdings, LLC d/b/a Herd Co Indy · Greenwood / Indianapolis, Indiana · herdcoindy.com · levi@herdcoindy.com'), { size: 8, color: '#5B665F' })
+  brandText_(foot.appendParagraph('Herd Co Indy LLC · Greenwood / Indianapolis, Indiana · herdcoindy.com · levi@herdcoindy.com'), { size: 8, color: '#5B665F' })
     .setAlignment(DocumentApp.HorizontalAlignment.CENTER);
   doc.saveAndClose();
 
@@ -945,7 +945,7 @@ function sendContract_(req) {
   var file = DriveApp.getFileById(f.driveId);
   var pdfName = String(f.name || 'Agreement').replace(/[\\/:*?"<>|]+/g, '-') + '.pdf';
   var pdf = file.getAs('application/pdf').setName(pdfName);
-  var subject = String(req.subject || ('Herd Co. agreement — ' + (pr.name || ''))).slice(0, 200);
+  var subject = String(req.subject || ('Herd Co Indy LLC agreement — ' + (pr.name || ''))).slice(0, 200);
   var body = String(req.body || '').slice(0, 10000);
   var opts = { attachments: [pdf], name: 'Levi McNeely · The Herd Co.', replyTo: 'levi@herdcoindy.com' };
   if (cc.length) opts.cc = cc.join(',');
